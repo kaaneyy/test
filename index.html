@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FineTune Empire</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="play-area">
+        <header id="hud" class="hud"></header>
+        <canvas id="gameCanvas" aria-label="FineTune Empire shop floor"></canvas>
+        <nav class="tabs" aria-label="Game screens">
+          <button data-action="tab" data-id="shop" class="active">Shop</button>
+          <button data-action="tab" data-id="dialogue">Counter</button>
+          <button data-action="tab" data-id="calibration">Workbench</button>
+          <button data-action="tab" data-id="ledger">Ledger</button>
+          <button data-action="tab" data-id="inventory">Inventory</button>
+          <button data-action="tab" data-id="coffee">Coffee</button>
+          <button data-action="tab" data-id="reputation">Trust</button>
+          <button data-action="tab" data-id="map">Map</button>
+          <button data-action="tab" data-id="bank">Bank</button>
+          <button data-action="tab" data-id="employees">Staff</button>
+          <button data-action="tab" data-id="operations">Ops</button>
+        </nav>
+        <div class="bottom-bar">
+          <button data-action="end-day">End Day</button>
+          <button data-action="save">Save</button>
+          <button data-action="load">Load</button>
+          <button data-action="reset" class="danger-button">New Game</button>
+        </div>
+      </section>
+      <aside id="sidePanel" class="side-panel"></aside>
+    </main>
+    <div id="toast" class="toast"></div>
+    <div id="notificationRoot"></div>
+    <div id="modalRoot"></div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
