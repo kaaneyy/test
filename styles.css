@@ -71,6 +71,7 @@ button.primary {
 
 .app-shell {
   display: grid;
+  grid-template-columns: 88px minmax(0, 1.45fr) minmax(360px, 0.95fr);
   grid-template-columns: minmax(0, 1.45fr) minmax(360px, 0.95fr);
   gap: 12px;
   width: 100%;
@@ -87,6 +88,7 @@ button.primary {
   min-width: 0;
   gap: 8px;
   position: sticky;
+  padding-left: 0;
   padding-left: 168px;
   top: 12px;
   max-height: calc(100dvh - 24px);
@@ -144,6 +146,31 @@ small {
   gap: 6px;
 }
 
+.left-rail {
+  position: sticky;
+  top: 12px;
+  max-height: calc(100dvh - 24px);
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.tabs {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+}
+
+.tabs button {
+  min-height: 40px;
+  padding: 6px 4px;
+  font-size: 12px;
+}
+
+.bottom-bar {
+  display: grid;
+  gap: 6px;
+  width: 100%;
 .bottom-bar {
   position: absolute;
   left: 8px;
@@ -495,6 +522,12 @@ li {
     margin: 0 auto;
   }
 
+  .left-rail {
+    position: static;
+    max-height: none;
+    grid-template-columns: 1fr;
+  }
+
   .play-area {
     min-height: 680px;
     position: static;
@@ -503,6 +536,8 @@ li {
     grid-template-rows: auto minmax(360px, 56vh) auto auto;
   }
 
+  .tabs,
+  .bottom-bar {
   .bottom-bar {
     position: static;
     display: flex;
