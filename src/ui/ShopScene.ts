@@ -55,8 +55,15 @@ export class ShopScene {
     if (this.keys.has("arrowup") || this.keys.has("w")) dy -= 1;
     if (this.keys.has("arrowdown") || this.keys.has("s")) dy += 1;
     const len = Math.hypot(dx, dy) || 1;
-    p.x = clamp(p.x + (dx / len) * p.speed * dt, 45, bounds.width - 45);
-    p.y = clamp(p.y + (dy / len) * p.speed * dt, 85, bounds.height - 35);
+    const nextX = clamp(p.x + (dx / len) * p.speed * dt, 45, bounds.width - 45);
+    const nextY = clamp(p.y + (dy / len) * p.speed * dt, 85, bounds.height - 35);
+    const blocked = [
+      { x: 500, y: 236, w: 180, h: 90 },
+      { x: bounds.width - 130, y: bounds.height - 160, w: 150, h: 100 },
+      { x: 108, y: bounds.height - 170, w: 160, h: 160 },
+    ];
+    const hit = blocked.some((b) => nextX > b.x - b.w / 2 && nextX < b.x + b.w / 2 && nextY > b.y - b.h / 2 && nextY < b.y + b.h / 2);
+    if (!hit) { p.x = nextX; p.y = nextY; }
     if (Math.abs(dx) > Math.abs(dy) && dx !== 0) p.facing = dx > 0 ? "right" : "left";
     else if (dy !== 0) p.facing = dy > 0 ? "down" : "up";
     this.customerBob += dt;
@@ -67,10 +74,13 @@ export class ShopScene {
     const width = this.canvas.clientWidth;
     const height = this.canvas.clientHeight;
     const bounds = getShopBounds(state);
-    const camera = getCamera(state, width, height, bounds);
+    const scale = Math.min(width / bounds.width, height / bounds.height);
+    const offsetX = (width - bounds.width * scale) / 2;
+    const offsetY = (height - bounds.height * scale) / 2;
     ctx.clearRect(0, 0, width, height);
     ctx.save();
-    ctx.translate(-camera.x, -camera.y);
+    ctx.translate(offsetX, offsetY);
+    ctx.scale(scale, scale);
     drawFloor(ctx, bounds.width, bounds.height);
     drawShopFixtures(ctx, state, this.customerBob, bounds);
     drawCustomer(ctx, state, this.customerBob);
@@ -83,13 +93,6 @@ export class ShopScene {
     const p = state.player;
     return getInteractables(state).find((item) => Math.hypot(p.x - item.x, p.y - item.y) < item.radius) || null;
   }
-}
-
-function getCamera(state, viewWidth, viewHeight, bounds) {
-  return {
-    x: clamp(state.player.x - viewWidth / 2, 0, Math.max(0, bounds.width - viewWidth)),
-    y: clamp(state.player.y - viewHeight / 2, 0, Math.max(0, bounds.height - viewHeight)),
-  };
 }
 
 function drawFloor(ctx, width, height) {
@@ -121,9 +124,8 @@ function drawShopFixtures(ctx, state, t, bounds) {
   drawZones(ctx, bounds);
   drawWall(ctx, bounds);
   drawAisleShelves(ctx, state);
-  drawExpansionFloor(ctx, state, bounds);
-  drawRack(ctx, 92, 95, state.inventory.slice(0, 6));
-  drawRack(ctx, 375, 95, state.inventory.slice(6, 11));
+  drawRack(ctx, 120, 108, state.inventory.slice(0, 5));
+  drawRack(ctx, 420, 108, state.inventory.slice(5, 10));
   drawDepartmentDisplays(ctx, state, t);
   drawCoffeeLounge(ctx, state, t, bounds);
   drawCounter(ctx);
