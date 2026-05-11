@@ -115,7 +115,7 @@ export function createInitialState(seed = 44107) {
     shelfDisplay: [null, null, null],
     incidents: [],
     randomEventsSeen: [],
-    dayGoals: { customersTarget: 2, customersServed: 0 },
+    dayGoals: { customersTarget: 2, customersServed: 0, ordersFulfilled: 0, ordersTarget: 1 },
     unlocked: {
       bank: false,
       employees: false,
@@ -160,6 +160,7 @@ export function createInitialState(seed = 44107) {
       selectedServiceId: "basic-setup",
       selectedOutsideJobId: null,
       qte: null,
+      selectedShelfSlot: null,
     },
   };
 }

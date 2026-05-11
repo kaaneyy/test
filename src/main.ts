@@ -42,6 +42,15 @@ let dayReportTimer = null;
 window.addEventListener("resize", () => scene.resize());
 scene.resize();
 
+canvas.addEventListener("click", (event) => {
+  const slot = scene.getShelfSlotFromClick(event, state);
+  if (slot === null || slot === undefined) return;
+  state.ui.selectedShelfSlot = slot;
+  state.ui.panel = "inventory";
+  showToast(`Shelf ${slot + 1} selected. Choose an item from inventory to place.`);
+  render();
+});
+
 window.addEventListener("keydown", (event) => {
   if (state.ui.qte?.active) {
     handleQteKey(event.key.toUpperCase());
@@ -286,7 +295,7 @@ function pitchSpecialEdition() {
 
 
 function assignShelf(slot, instrumentId) {
-  const idx = Number(slot);
+  const idx = slot === undefined || slot === null || slot === "" ? Number(state.ui.selectedShelfSlot) : Number(slot);
   const item = state.inventory.find((it) => it.id === instrumentId && it.stock > 0);
   if (!Number.isInteger(idx) || idx < 0 || idx > 2 || !item) return { message: "Cannot place this instrument on shelf." };
   state.shelfDisplay[idx] = { id: item.id, name: item.name, bonus: item.qualityTier === "Collector" ? 8 : 4, debuff: item.condition.includes("neglected") ? -7 : -2 };
@@ -311,9 +320,11 @@ function startKeyboardQte() {
 }
 
 function answerRoamer(mode) {
+  if (state.ui.lastRoamerAnswerDay === state.day) return { message: "You already answered a roaming bubble today." };
   const delta = mode === "honest" ? { rep: 1.2, cash: 0 } : mode === "dishonest" ? { rep: -1.8, cash: 15 } : { rep: 0.4, cash: 6 };
   state.stats.publicReputation = Math.max(0, Math.min(100, state.stats.publicReputation + delta.rep));
   state.cash += delta.cash;
+  state.ui.lastRoamerAnswerDay = state.day;
   return { message: `Roaming customer answer: ${mode}. Reputation ${delta.rep >= 0 ? "+" : ""}${delta.rep.toFixed(1)}${delta.cash ? `, tip +$${delta.cash}` : ""}.` };
 }
 
@@ -371,6 +382,9 @@ function endDay() {
   if ((state.dayGoals?.customersServed || 0) < (state.dayGoals?.customersTarget || 0)) {
     return { message: `Serve more customers before closing day: ${state.dayGoals.customersServed}/${state.dayGoals.customersTarget}.` };
   }
+  if ((state.dayGoals?.ordersFulfilled || 0) < (state.dayGoals?.ordersTarget || 1)) {
+    return { message: `Fulfill at least ${state.dayGoals.ordersTarget} online order today before ending day.` };
+  }
   const dayEnded = state.day;
   const fatigueBeforeReset = state.player.fatigue.level;
   const cashBefore = state.cash;
@@ -406,6 +420,8 @@ function endDay() {
   if (!state.activeCustomer && state.day <= 7) state.activeCustomer = createCustomerForDay(state);
   state.dayGoals.customersServed = 0;
   state.dayGoals.customersTarget = 2 + Math.floor(state.rng.next() * 3);
+  state.dayGoals.ordersFulfilled = 0;
+  state.dayGoals.ordersTarget = 1;
   state.player.fatigue.actionsToday = 0;
   state.player.fatigue.level = Math.max(0, Math.round(fatigueBeforeReset * 0.35));
   state.dayReport = buildDayReport(state, dayEnded, cashBefore, ledgerCountBefore, events);
@@ -494,6 +510,7 @@ function renderHud() {
     <div><strong>${Math.round(state.player.fatigue.level)}</strong><span>fatigue</span></div>
     <div><strong>$${getRunningProfitToday().toFixed(2)}</strong><span>profit today</span></div>
     <div><strong>${state.dayGoals.customersServed}/${state.dayGoals.customersTarget}</strong><span>customers served</span></div>
+    <div><strong>${state.dayGoals.ordersFulfilled}/${state.dayGoals.ordersTarget}</strong><span>orders fulfilled</span></div>
   `;
 }
 

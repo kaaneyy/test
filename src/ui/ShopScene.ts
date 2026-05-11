@@ -58,11 +58,16 @@ export class ShopScene {
     const nextX = clamp(p.x + (dx / len) * p.speed * dt, 45, bounds.width - 45);
     const nextY = clamp(p.y + (dy / len) * p.speed * dt, 85, bounds.height - 35);
     const blocked = [
-      { x: 500, y: 236, w: 180, h: 90 },
-      { x: bounds.width - 130, y: bounds.height - 160, w: 150, h: 100 },
-      { x: 108, y: bounds.height - 170, w: 160, h: 160 },
+      { x: 500, y: 236, w: 210, h: 110 },
+      { x: bounds.width - 130, y: bounds.height - 160, w: 180, h: 120 },
+      { x: 108, y: bounds.height - 170, w: 190, h: 180 },
+      { x: 120, y: 108, w: 240, h: 120 },
+      { x: 420, y: 108, w: 240, h: 120 },
+      { x: 232, y: 230, w: 170, h: 70 },
+      { x: 232, y: 306, w: 170, h: 70 },
     ];
-    const hit = blocked.some((b) => nextX > b.x - b.w / 2 && nextX < b.x + b.w / 2 && nextY > b.y - b.h / 2 && nextY < b.y + b.h / 2);
+    const margin = 18;
+    const hit = blocked.some((b) => nextX > b.x - b.w / 2 - margin && nextX < b.x + b.w / 2 + margin && nextY > b.y - b.h / 2 - margin && nextY < b.y + b.h / 2 + margin);
     if (!hit) { p.x = nextX; p.y = nextY; }
     if (Math.abs(dx) > Math.abs(dy) && dx !== 0) p.facing = dx > 0 ? "right" : "left";
     else if (dy !== 0) p.facing = dy > 0 ? "down" : "up";
@@ -77,6 +82,7 @@ export class ShopScene {
     const scale = Math.min(width / bounds.width, height / bounds.height);
     const offsetX = (width - bounds.width * scale) / 2;
     const offsetY = (height - bounds.height * scale) / 2;
+    this.lastView = { scale, offsetX, offsetY };
     ctx.clearRect(0, 0, width, height);
     ctx.save();
     ctx.translate(offsetX, offsetY);
@@ -87,6 +93,22 @@ export class ShopScene {
     drawPlayer(ctx, state.player);
     ctx.restore();
     drawInteractHint(ctx, state, this.getNearbyInteractable(state));
+  }
+
+  getShelfSlotFromClick(event, state) {
+    if (!this.lastView) return null;
+    const rect = this.canvas.getBoundingClientRect();
+    const sx = event.clientX - rect.left;
+    const sy = event.clientY - rect.top;
+    const wx = (sx - this.lastView.offsetX) / this.lastView.scale;
+    const wy = (sy - this.lastView.offsetY) / this.lastView.scale;
+    const shelves = [
+      { slot: 0, x1: 102, y1: 98, x2: 312, y2: 198 },
+      { slot: 1, x1: 402, y1: 98, x2: 612, y2: 198 },
+      { slot: 2, x1: 214, y1: 220, x2: 358, y2: 270 },
+    ];
+    const hit = shelves.find((shelf) => wx >= shelf.x1 && wx <= shelf.x2 && wy >= shelf.y1 && wy <= shelf.y2);
+    return hit ? hit.slot : null;
   }
 
   getNearbyInteractable(state) {

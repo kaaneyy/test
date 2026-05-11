@@ -31,6 +31,7 @@ export function fulfillOnlineOrder(state, orderId) {
   if (!item || item.stock < order.quantity) return { ok: false, message: "Not enough stock to fulfill that online order." };
   item.stock -= order.quantity;
   order.status = "fulfilled";
+  if (state.dayGoals) state.dayGoals.ordersFulfilled = (state.dayGoals.ordersFulfilled || 0) + 1;
   addLedger(state, "online-sales", `Online order fulfilled: ${order.itemName}`, order.gross);
   state.stats.publicReputation = clamp(state.stats.publicReputation + 0.8, 0, 100);
   pushNotification(state, "online-order", "Online order fulfilled", `${order.itemName} shipped from stock.`);
