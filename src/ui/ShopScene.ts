@@ -62,8 +62,7 @@ export class ShopScene {
       { x: bounds.width - 130, y: bounds.height - 160, w: 150, h: 100 },
       { x: 108, y: bounds.height - 170, w: 160, h: 160 },
     ];
-    const margin = 18;
-    const hit = blocked.some((b) => nextX > b.x - b.w / 2 - margin && nextX < b.x + b.w / 2 + margin && nextY > b.y - b.h / 2 - margin && nextY < b.y + b.h / 2 + margin);
+    const hit = blocked.some((b) => nextX > b.x - b.w / 2 && nextX < b.x + b.w / 2 && nextY > b.y - b.h / 2 && nextY < b.y + b.h / 2);
     if (!hit) { p.x = nextX; p.y = nextY; }
     if (Math.abs(dx) > Math.abs(dy) && dx !== 0) p.facing = dx > 0 ? "right" : "left";
     else if (dy !== 0) p.facing = dy > 0 ? "down" : "up";
@@ -78,7 +77,6 @@ export class ShopScene {
     const scale = Math.min(width / bounds.width, height / bounds.height);
     const offsetX = (width - bounds.width * scale) / 2;
     const offsetY = (height - bounds.height * scale) / 2;
-    this.lastView = { scale, offsetX, offsetY };
     ctx.clearRect(0, 0, width, height);
     ctx.save();
     ctx.translate(offsetX, offsetY);
@@ -89,22 +87,6 @@ export class ShopScene {
     drawPlayer(ctx, state.player);
     ctx.restore();
     drawInteractHint(ctx, state, this.getNearbyInteractable(state));
-  }
-
-  getShelfSlotFromClick(event, state) {
-    if (!this.lastView) return null;
-    const rect = this.canvas.getBoundingClientRect();
-    const sx = event.clientX - rect.left;
-    const sy = event.clientY - rect.top;
-    const wx = (sx - this.lastView.offsetX) / this.lastView.scale;
-    const wy = (sy - this.lastView.offsetY) / this.lastView.scale;
-    const shelves = [
-      { slot: 0, x: 120, y: 108, w: 210, h: 100 },
-      { slot: 1, x: 420, y: 108, w: 210, h: 100 },
-      { slot: 2, x: 232, y: 230, w: 126, h: 34 },
-    ];
-    const hit = shelves.find((shelf) => wx >= shelf.x - shelf.w / 2 && wx <= shelf.x + shelf.w / 2 && wy >= shelf.y - shelf.h / 2 && wy <= shelf.y + shelf.h / 2);
-    return hit ? hit.slot : null;
   }
 
   getNearbyInteractable(state) {
