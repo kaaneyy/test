@@ -6,7 +6,6 @@ export function renderInventoryPanel(state) {
   return `
     <section class="panel-section">
       <h2>Inventory and Suppliers</h2>
-      ${state.ui.selectedShelfSlot !== null && state.ui.selectedShelfSlot !== undefined ? `<p class="quote">Placing to shelf ${Number(state.ui.selectedShelfSlot)+1}. Choose any in-stock instrument.</p>` : ""}
       <div class="stat-grid">
         <div class="stat"><span>Instruments</span><strong>${summary.instrumentCount}</strong></div>
         <div class="stat"><span>Accessories</span><strong>${summary.accessoryCount}</strong></div>
@@ -46,7 +45,7 @@ export function renderInventoryPanel(state) {
               <p>${item.category} | ${item.condition} | ${item.qualityTier}</p>
               <p class="muted">Cost $${item.cost}, sell $${item.sellPrice}, lead ${item.leadTimeDays} days, warranty risk ${Math.round(item.warrantyRisk * 100)}%</p>
               <p class="muted">Supplier: ${item.supplier}. Target: ${item.targetCustomerTags.join(", ")}</p>
-              <div class="button-row"><button data-action="order-stock" data-id="${item.id}">Order 1</button><button data-action="assign-shelf" data-id="${item.id}" data-slot="${state.ui.selectedShelfSlot ?? 0}">Shelf 1</button><button data-action="assign-shelf" data-id="${item.id}" data-slot="${state.ui.selectedShelfSlot ?? 1}">Shelf 2</button><button data-action="assign-shelf" data-id="${item.id}" data-slot="${state.ui.selectedShelfSlot ?? 2}">Shelf 3</button></div>
+              <div class="button-row"><button data-action="order-stock" data-id="${item.id}">Order 1</button><button data-action="assign-shelf" data-id="${item.id}" data-slot="0">Shelf 1</button><button data-action="assign-shelf" data-id="${item.id}" data-slot="1">Shelf 2</button><button data-action="assign-shelf" data-id="${item.id}" data-slot="2">Shelf 3</button></div>
             </article>
           `).join("")}
         </div>
