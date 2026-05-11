@@ -67,10 +67,13 @@ export class ShopScene {
     const width = this.canvas.clientWidth;
     const height = this.canvas.clientHeight;
     const bounds = getShopBounds(state);
-    const camera = getCamera(state, width, height, bounds);
+    const scale = Math.min(width / bounds.width, height / bounds.height);
+    const offsetX = (width - bounds.width * scale) / 2;
+    const offsetY = (height - bounds.height * scale) / 2;
     ctx.clearRect(0, 0, width, height);
     ctx.save();
-    ctx.translate(-camera.x, -camera.y);
+    ctx.translate(offsetX, offsetY);
+    ctx.scale(scale, scale);
     drawFloor(ctx, bounds.width, bounds.height);
     drawShopFixtures(ctx, state, this.customerBob, bounds);
     drawCustomer(ctx, state, this.customerBob);
@@ -83,13 +86,6 @@ export class ShopScene {
     const p = state.player;
     return getInteractables(state).find((item) => Math.hypot(p.x - item.x, p.y - item.y) < item.radius) || null;
   }
-}
-
-function getCamera(state, viewWidth, viewHeight, bounds) {
-  return {
-    x: clamp(state.player.x - viewWidth / 2, 0, Math.max(0, bounds.width - viewWidth)),
-    y: clamp(state.player.y - viewHeight / 2, 0, Math.max(0, bounds.height - viewHeight)),
-  };
 }
 
 function drawFloor(ctx, width, height) {

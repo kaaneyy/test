@@ -1,4 +1,4 @@
-import { calibrationActions, scoreCalibration, summarizeMeasurements } from "../core/Calibration.ts";
+import { calibrationActions, scoreCalibration, summarizeMeasurements, getCalibrationReadiness, estimateAdjustmentCost } from "../core/Calibration.ts";
 import { calibrationProfiles, preferenceModifiers, setupProcedures } from "../data/calibrationProfiles.ts";
 
 export function renderCalibrationWorkbench(state) {
@@ -17,11 +17,20 @@ export function renderCalibrationWorkbench(state) {
   const modifier = preferenceModifiers[calibration.preferenceId];
   const service = setupProcedures.find((item) => item.id === calibration.serviceId);
   const m = calibration.measurements;
+  const readiness = getCalibrationReadiness(calibration);
+  const instrumentGroup = calibration.instrumentName.toLowerCase().includes("piano") ? "piano" : calibration.instrumentName.toLowerCase().includes("bass") ? "bass" : "guitar";
+  const allowedActions = calibrationActions.filter((action) => {
+    if (instrumentGroup === "piano") return !["raise-pickups", "lower-pickups", "clean-electronics"].includes(action.id);
+    if (instrumentGroup === "bass") return action.id !== "condition-board";
+    return true;
+  });
+  const quickEventPrompt = instrumentGroup === "piano" ? "Strike the matching key timing" : instrumentGroup === "bass" ? "Lock in groove timing" : "Nail the string bend timing";
   return `
     <section class="panel-section calibration-panel">
       <h2>${calibration.instrumentName}</h2>
       <p class="muted">${service.label} | ${profile.label} | Preference: ${modifier.label}</p>
       <div class="score-strip">
+        <span>Readiness <strong>${readiness.ready ? "Ready" : "Not ready"}</strong></span>
         <span>Preview setup score <strong>${preview.score}</strong></span>
         <span>Customer impact <strong>${preview.satisfaction}</strong></span>
         <span>Buzz risk <strong>${preview.risks.buzzRisk}</strong></span>
@@ -39,13 +48,17 @@ export function renderCalibrationWorkbench(state) {
         ${metric("Documentation", `${Math.round(calibration.documentationQuality)}/100`)}
       </div>
       <p class="quote">${summarizeMeasurements(calibration)}</p>
+      ${readiness.missingSteps.length ? `<p class="quote">Missing before sale: ${readiness.missingSteps.join(", ")}.</p>` : ""}
       <h3>Tools and Actions</h3>
+      <p class="muted">Educational path: inspect → relief → action → intonation → play test → document. Following this order improves consistency and score.</p>
+      <div class="button-row"><button data-action="start-fullscreen-qte">Start full-screen setup QTE</button><button data-action="auto-adjust">Auto complete required steps (premium)</button></div>
+      <p class="quote">Mini game: ${quickEventPrompt}. Use <strong>Quick focus event</strong> like a quick-time event during adjustments.</p>
       <div class="action-grid">
-        ${calibrationActions.map((action) => `
-          <button data-action="calibration-action" data-id="${action.id}" class="${action.shortcut ? "danger-button" : ""}" title="${action.help}">
-            ${action.label}
+        ${allowedActions.map((action) => { const needed = readiness.missingSteps.includes(action.step); const cost = action.shortcut ? 0 : estimateAdjustmentCost(action); return `
+          <button data-action="calibration-action" data-id="${action.id}" class="${action.shortcut ? "danger-button" : ""} ${needed ? "needed-action" : ""}" title="${action.help}">
+            ${action.label} ${needed ? "• needed" : ""} ($${cost.toFixed(2)})
           </button>
-        `).join("")}
+        `; }).join("")}
       </div>
       <div class="score-details">
         <h3>Scoring Notes</h3>

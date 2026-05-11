@@ -125,6 +125,45 @@ export const outsideJobs = [
     successReview: "The school invoice was clean and every student guitar was playable on day one.",
     failureReview: "Half the guitars arrived out of tune and no one could match serials to the invoice.",
   },
+
+  {
+    id: "festival-multi-stage-backline",
+    title: "Festival multi-stage backline and concert set setup",
+    unlockDay: 8,
+    type: "festival-backline",
+    location: "Riverline Festival Grounds",
+    description: "Full concert system setup across multiple stages: guitar/bass/keys/drums handoff, line checks, emergency swaps, and final artist sign-off.",
+    payment: 4200,
+    depositAllowedReputation: 88,
+    durationHours: 14,
+    travelCost: 260,
+    publicUseFactor: 2.2,
+    valueFactor: 2.8,
+    advanced: true,
+    requiredTools: ["digital-tuner", "drum-key", "line-check-kit", "humidity-meter", "redundant-cables", "documentation-pack"],
+    checklist: [
+      { id: "stage-plan", label: "Confirm stage plot and changeover timing", proper: true, documentation: 18 },
+      { id: "line-check", label: "Complete line check for every stage", proper: true, quality: 22 },
+      { id: "redundancy", label: "Prepare backup instruments and cables", proper: true, quality: 18 },
+      { id: "artist-pass", label: "Run artist play test on all priority rigs", proper: true, quality: 24 },
+      { id: "signoff", label: "Collect technical director sign-off", proper: true, documentation: 16 }
+    ],
+    shortcuts: [
+      { id: "skip-stage", label: "Skip secondary stage line checks", severity: 0.9, dishonest: false },
+      { id: "no-backups", label: "Run without redundancy backups", severity: 0.85, dishonest: false },
+      { id: "fake-signoff", label: "Mark sign-off without director approval", severity: 1.0, dishonest: true }
+    ],
+    failureIncident: {
+      title: "Festival backline collapse",
+      description: "Set change overruns and preventable failures trigger social blowback from artists and crew.",
+      publicReputationDrop: 20,
+      industryHonorDrop: 26,
+      legalRiskAdd: 20,
+      refundAmount: 1800
+    },
+    successReview: "The festival crew called it the smoothest changeover weekend they have seen.",
+    failureReview: "Concert rigs failed mid-changeover. Avoid this shop for pro events."
+  },
   {
     id: "church-acoustic-maintenance",
     title: "Church acoustic maintenance call",

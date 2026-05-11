@@ -3,7 +3,7 @@ import { pushNotification } from "./Notifications.ts";
 import { clamp, round } from "./Rng.ts";
 
 export function maybePostOnlineOrder(state) {
-  const chance = clamp(0.08 + state.stats.publicReputation / 900 + state.stats.brandImage / 1200, 0.05, 0.24);
+  const chance = clamp(0.16 + state.stats.publicReputation / 850 + state.stats.brandImage / 1100, 0.08, 0.38);
   if (!state.rng.chance(chance)) return null;
   const candidates = state.inventory.filter((item) => item.stock > 0 && item.sellPrice < 1200);
   if (!candidates.length) return null;
