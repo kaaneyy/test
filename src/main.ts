@@ -1,6 +1,6 @@
 import { createInitialState, loadGame, resetSave, saveGame } from "./core/GameState.ts";
 import { createCustomerForDay, askQuestion, evaluateRecommendation } from "./core/Customers.ts";
-import { startCalibration, applyCalibrationAction, finalizeCalibration, buildDefectFromCalibration, beginFullscreenQte, resolveFullscreenQte } from "./core/Calibration.ts";
+import { startCalibration, applyCalibrationAction, finalizeCalibration, buildDefectFromCalibration, beginFullscreenQte, resolveFullscreenQte, getCalibrationReadiness } from "./core/Calibration.ts";
 import { completeSaleTransaction, getAccessory, getInventoryItem, calculateSaleTotals, processEndOfDay, takeLoan, payTaxDeposit, buyStarterStock, processPendingInvoices } from "./core/Economy.ts";
 import { applyServiceOutcome, processPendingDefects } from "./core/Reputation.ts";
 import { acceptOutsideJob, completeOutsideJob, toggleJobChecklist, toggleJobShortcut } from "./core/Jobs.ts";
@@ -198,6 +198,12 @@ function finalizeCurrentSale() {
   const sale = state.activeSale;
   const calibration = state.activeCalibration;
   if (!customer || !sale || !calibration) return { message: "No active sale/setup to finish." };
+  const readiness = getCalibrationReadiness(calibration);
+  if (!readiness.ready) {
+    const missing = readiness.missingSteps.length ? `Missing steps: ${readiness.missingSteps.join(", ")}.` : "";
+    const riskNote = readiness.buzzRisk > 55 ? ` Buzz risk is too high (${Math.round(readiness.buzzRisk)}).` : "";
+    return { message: `Adjustment not ready for sale. ${missing}${riskNote}`.trim() };
+  }
   const result = finalizeCalibration(state, customer);
   const fatiguePenalty = getFatiguePenalty();
   const blendedSatisfaction = Math.max(0, Math.round(customer.satisfaction * 0.35 + result.satisfaction * 0.65 - fatiguePenalty));

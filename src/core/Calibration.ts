@@ -401,6 +401,20 @@ export function estimateDiscoverySeverity(calibration, technicalScore) {
   return clamp(round(severity, 2), 0, 1);
 }
 
+
+export function getCalibrationReadiness(calibration) {
+  const service = setupProcedures.find((item) => item.id === calibration.serviceId) || setupProcedures[1];
+  const required = service.requiredSteps || [];
+  const missing = required.filter((step) => !(calibration.steps[step] > 0 || (step === "nut-check" && calibration.steps["nut-check"] > 0)));
+  const buzzRisk = estimateBuzzRisk(calibration);
+  return {
+    requiredSteps: required,
+    missingSteps: missing,
+    buzzRisk,
+    ready: missing.length === 0 && buzzRisk <= 55,
+  };
+}
+
 export function finalizeCalibration(state, customer = null) {
   const calibration = state.activeCalibration;
   if (!calibration || calibration.finalized) return null;

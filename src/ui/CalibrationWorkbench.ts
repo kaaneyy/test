@@ -1,4 +1,4 @@
-import { calibrationActions, scoreCalibration, summarizeMeasurements } from "../core/Calibration.ts";
+import { calibrationActions, scoreCalibration, summarizeMeasurements, getCalibrationReadiness } from "../core/Calibration.ts";
 import { calibrationProfiles, preferenceModifiers, setupProcedures } from "../data/calibrationProfiles.ts";
 
 export function renderCalibrationWorkbench(state) {
@@ -17,6 +17,7 @@ export function renderCalibrationWorkbench(state) {
   const modifier = preferenceModifiers[calibration.preferenceId];
   const service = setupProcedures.find((item) => item.id === calibration.serviceId);
   const m = calibration.measurements;
+  const readiness = getCalibrationReadiness(calibration);
   const instrumentGroup = calibration.instrumentName.toLowerCase().includes("piano") ? "piano" : calibration.instrumentName.toLowerCase().includes("bass") ? "bass" : "guitar";
   const allowedActions = calibrationActions.filter((action) => {
     if (instrumentGroup === "piano") return !["raise-pickups", "lower-pickups", "clean-electronics"].includes(action.id);
@@ -29,6 +30,7 @@ export function renderCalibrationWorkbench(state) {
       <h2>${calibration.instrumentName}</h2>
       <p class="muted">${service.label} | ${profile.label} | Preference: ${modifier.label}</p>
       <div class="score-strip">
+        <span>Readiness <strong>${readiness.ready ? "Ready" : "Not ready"}</strong></span>
         <span>Preview setup score <strong>${preview.score}</strong></span>
         <span>Customer impact <strong>${preview.satisfaction}</strong></span>
         <span>Buzz risk <strong>${preview.risks.buzzRisk}</strong></span>
@@ -46,6 +48,7 @@ export function renderCalibrationWorkbench(state) {
         ${metric("Documentation", `${Math.round(calibration.documentationQuality)}/100`)}
       </div>
       <p class="quote">${summarizeMeasurements(calibration)}</p>
+      ${readiness.missingSteps.length ? `<p class="quote">Missing before sale: ${readiness.missingSteps.join(", ")}.</p>` : ""}
       <h3>Tools and Actions</h3>
       <p class="muted">Educational path: inspect → relief → action → intonation → play test → document. Following this order improves consistency and score.</p>
       <button data-action="start-fullscreen-qte">Start full-screen setup QTE</button>

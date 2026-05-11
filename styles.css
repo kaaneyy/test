@@ -21,7 +21,7 @@ body {
   margin: 0;
   color: var(--ink);
   background: #e9e1d2;
-  min-height: 100vh;
+  min-height: 100dvh;
   overflow: auto;
 }
 
@@ -72,7 +72,7 @@ button.primary {
   grid-template-columns: minmax(0, 1fr) minmax(320px, 470px);
   gap: 12px;
   width: 100%;
-  min-height: 100vh;
+  min-height: 100dvh;
   padding: 12px;
   align-items: start;
 }
@@ -82,9 +82,8 @@ button.primary {
   grid-template-rows: auto minmax(360px, calc(100vh - 190px)) auto auto;
   min-width: 0;
   gap: 8px;
-  position: sticky;
-  top: 12px;
-  max-height: calc(100vh - 24px);
+  position: static;
+  max-height: none;
 }
 
 .hud {
@@ -470,7 +469,7 @@ li {
   .app-shell {
     grid-template-columns: 1fr;
     height: auto;
-    min-height: 100vh;
+    min-height: 100dvh;
   }
 
   .play-area {
