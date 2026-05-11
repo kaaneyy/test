@@ -157,6 +157,7 @@ export function createInitialState(seed = 44107) {
       selectedAccessoryIds: [],
       selectedServiceId: "basic-setup",
       selectedOutsideJobId: null,
+      qte: null,
     },
   };
 }

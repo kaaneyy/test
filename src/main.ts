@@ -1,6 +1,6 @@
 import { createInitialState, loadGame, resetSave, saveGame } from "./core/GameState.ts";
 import { createCustomerForDay, askQuestion, evaluateRecommendation } from "./core/Customers.ts";
-import { startCalibration, applyCalibrationAction, finalizeCalibration, buildDefectFromCalibration } from "./core/Calibration.ts";
+import { startCalibration, applyCalibrationAction, finalizeCalibration, buildDefectFromCalibration, beginFullscreenQte, resolveFullscreenQte } from "./core/Calibration.ts";
 import { completeSaleTransaction, getAccessory, getInventoryItem, calculateSaleTotals, processEndOfDay, takeLoan, payTaxDeposit, buyStarterStock, processPendingInvoices } from "./core/Economy.ts";
 import { applyServiceOutcome, processPendingDefects } from "./core/Reputation.ts";
 import { acceptOutsideJob, completeOutsideJob, toggleJobChecklist, toggleJobShortcut } from "./core/Jobs.ts";
@@ -90,6 +90,10 @@ function handleAction(action, button, id) {
       return resolveHaggle(button.dataset.mode || "counter");
     case "calibration-action":
       return applyCalibrationAction(state.activeCalibration, id, state);
+    case "start-fullscreen-qte":
+      return beginFullscreenQte(state, state.activeCalibration);
+    case "qte-choice":
+      return resolveFullscreenQte(state, button.dataset.step);
     case "finalize-calibration":
       return finalizeCurrentSale();
     case "end-day":
@@ -98,7 +102,6 @@ function handleAction(action, button, id) {
       return createCharacter(button);
     case "save":
       return saveGame(state).then(() => ({ message: "Game saved." }));
-      return { message: "Game saved." };
     case "load":
       return loadGame().then((loaded) => { state = loaded || state; return { message: "Game loaded." }; });
     case "reset":
@@ -324,7 +327,7 @@ function render() {
 }
 
 function renderModal() {
-  modalRoot.innerHTML = renderDayReport(state.dayReport);
+  modalRoot.innerHTML = `${renderDayReport(state.dayReport)}${renderQteModal(state)}`;
   if (state.dayReport) {
     const closeButton = document.querySelector("#closeDayReport");
     const remaining = Math.max(0, Math.ceil((state.dayReport.unlockAt - Date.now()) / 1000));
@@ -413,6 +416,25 @@ function renderWelcomePanel() {
         <button data-action="tab" data-id="ledger">Review ledger</button>
       </div>
     </section>
+  `;
+}
+
+
+function renderQteModal(state) {
+  const qte = state.ui.qte;
+  if (!qte) return "";
+  const options = ["RELIEF", "ACTION", "INTONATION", "TUNING"];
+  return `
+    <div class="fullscreen-qte">
+      <section class="qte-card">
+        <h2>Full-Screen Setup QTE</h2>
+        <p>Follow pro adjustment order for ${qte.profileLabel}. This teaches sequence and rewards precise work.</p>
+        <div class="qte-target">Target sequence: ${qte.target.join(" → ")}</div>
+        <p class="muted">Chosen: ${qte.chosen.join(" → ") || "none"}</p>
+        <ul class="fact-list">${qte.education.map((line)=>`<li>${line}</li>`).join("")}</ul>
+        <div class="qte-grid">${options.map((o)=>`<button data-action="qte-choice" data-step="${o}">${o}</button>`).join("")}</div>
+      </section>
+    </div>
   `;
 }
 

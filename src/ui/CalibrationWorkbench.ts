@@ -47,6 +47,8 @@ export function renderCalibrationWorkbench(state) {
       </div>
       <p class="quote">${summarizeMeasurements(calibration)}</p>
       <h3>Tools and Actions</h3>
+      <p class="muted">Educational path: inspect → relief → action → intonation → play test → document. Following this order improves consistency and score.</p>
+      <button data-action="start-fullscreen-qte">Start full-screen setup QTE</button>
       <p class="quote">Mini game: ${quickEventPrompt}. Use <strong>Quick focus event</strong> like a quick-time event during adjustments.</p>
       <div class="action-grid">
         ${allowedActions.map((action) => `

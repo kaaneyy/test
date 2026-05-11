@@ -247,6 +247,38 @@ export function applyCalibrationAction(calibration, actionId, state) {
   return { ok: true, message: msg };
 }
 
+
+export function beginFullscreenQte(state, calibration) {
+  const profile = calibrationProfiles[calibration.profileId] || calibrationProfiles.ElectricGuitarStandard;
+  const target = ["RELIEF", "ACTION", "INTONATION", "TUNING"];
+  state.ui.qte = {
+    target,
+    chosen: [],
+    profileLabel: profile.label,
+    education: [
+      "Relief first: neck geometry must stabilize before fine action work.",
+      "Action second: set playability before intonation.",
+      "Intonation after geometry: pitch mapping depends on final action.",
+      "Tuning last: always verify after all adjustments."
+    ]
+  };
+  return { ok: true, message: "Fullscreen setup QTE started." };
+}
+
+export function resolveFullscreenQte(state, step) {
+  const qte = state.ui.qte;
+  const calibration = state.activeCalibration;
+  if (!qte || !calibration) return { ok: false, message: "No active QTE." };
+  qte.chosen.push(step);
+  if (qte.chosen.length < qte.target.length) return { ok: true, message: `Step ${qte.chosen.length}/${qte.target.length} locked.` };
+  const matches = qte.target.filter((item, idx) => qte.chosen[idx] === item).length;
+  calibration.documentationQuality += matches * 5;
+  calibration.explanationQuality += matches * 4;
+  calibration.damageRisk = clamp(calibration.damageRisk - matches * 2, 0, 100);
+  state.ui.qte = null;
+  return { ok: true, message: `QTE complete: ${matches}/${qte.target.length} correct sequence hits.` };
+}
+
 export function scoreCalibration(calibration, customer = null, playerSkill = 50, toolCondition = 70) {
   const profile = calibrationProfiles[calibration.profileId] || calibrationProfiles.ElectricGuitarStandard;
   const modifier = preferenceModifiers[calibration.preferenceId] || preferenceModifiers.BluesRockModifier;
