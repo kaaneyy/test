@@ -394,7 +394,8 @@ li {
 .notification-stack {
   position: fixed;
   right: 16px;
-  top: 72px;
+  top: auto;
+  bottom: 72px;
   display: grid;
   gap: 8px;
   width: min(360px, calc(100vw - 32px));
@@ -446,7 +447,8 @@ li {
 .toast {
   position: fixed;
   right: 16px;
-  top: 16px;
+  top: auto;
+  bottom: 16px;
   max-width: min(440px, calc(100vw - 32px));
   background: rgba(255, 253, 247, .96);
   color: var(--ink);
