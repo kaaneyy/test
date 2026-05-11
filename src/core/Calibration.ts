@@ -22,6 +22,7 @@ export const calibrationActions = [
   { id: "condition-board", label: "Condition fretboard if appropriate", step: "clean", minutes: 8, help: "Useful on dry unfinished boards; not every board needs oil." },
   { id: "fret-check", label: "Check frets with rocker", step: "fret-check", minutes: 10, help: "Finds uneven frets before promising buzz-free low action." },
   { id: "play-test", label: "Play test with customer style", step: "play-test", minutes: 12, help: "Catches buzz, unstable tuning, and preference mismatch." },
+  { id: "qte-focus", label: "Quick focus event", step: "qte", minutes: 3, help: "Mini quick-time style check. Success improves outcome; failure blurs judgement." },
   { id: "document", label: "Document final measurements", step: "document", minutes: 10, help: "Raises honor and lowers legal risk on valuable work." },
   { id: "honest-warning", label: "Warn about limits before overpromising", step: "honesty", minutes: 4, help: "May lower short-term excitement but protects trust." },
   { id: "skip-intonation", label: "Shortcut: skip full intonation", step: "shortcut", minutes: -8, shortcut: true, severity: 0.45, dishonest: false },
@@ -56,6 +57,7 @@ export function startCalibration(state, instrument, customer, serviceId) {
     trussMovesSinceSettle: 0,
     finalized: false,
     finalScore: null,
+    qteStreak: 0,
   };
   state.activeCalibration = calibration;
   return calibration;
@@ -199,6 +201,19 @@ export function applyCalibrationAction(calibration, actionId, state) {
       m.fretEvenness = clamp(m.fretEvenness + 2, 0, 100);
       calibration.documentationQuality += 4;
       break;
+    case "qte-focus":
+      {
+        const success = state.rng.next() > 0.35;
+        if (success) {
+          calibration.qteStreak += 1;
+          calibration.documentationQuality += 3;
+          m.tuningStability = clamp(m.tuningStability + 4, 0, 100);
+        } else {
+          calibration.damageRisk = clamp(calibration.damageRisk + 4, 0, 100);
+          m.buzzRisk = clamp(m.buzzRisk + 5, 0, 100);
+        }
+      }
+      break;
     case "play-test":
       m.playTestPassed = estimateBuzzRisk(calibration) < 36 && m.tuningStability > 58;
       m.buzzRisk = clamp(m.buzzRisk - 3, 0, 100);
@@ -230,6 +245,38 @@ export function applyCalibrationAction(calibration, actionId, state) {
   const msg = `${action.label}: ${summarizeMeasurements(calibration)}`;
   calibration.log.unshift(msg);
   return { ok: true, message: msg };
+}
+
+
+export function beginFullscreenQte(state, calibration) {
+  const profile = calibrationProfiles[calibration.profileId] || calibrationProfiles.ElectricGuitarStandard;
+  const target = ["RELIEF", "ACTION", "INTONATION", "TUNING"];
+  state.ui.qte = {
+    target,
+    chosen: [],
+    profileLabel: profile.label,
+    education: [
+      "Relief first: neck geometry must stabilize before fine action work.",
+      "Action second: set playability before intonation.",
+      "Intonation after geometry: pitch mapping depends on final action.",
+      "Tuning last: always verify after all adjustments."
+    ]
+  };
+  return { ok: true, message: "Fullscreen setup QTE started." };
+}
+
+export function resolveFullscreenQte(state, step) {
+  const qte = state.ui.qte;
+  const calibration = state.activeCalibration;
+  if (!qte || !calibration) return { ok: false, message: "No active QTE." };
+  qte.chosen.push(step);
+  if (qte.chosen.length < qte.target.length) return { ok: true, message: `Step ${qte.chosen.length}/${qte.target.length} locked.` };
+  const matches = qte.target.filter((item, idx) => qte.chosen[idx] === item).length;
+  calibration.documentationQuality += matches * 5;
+  calibration.explanationQuality += matches * 4;
+  calibration.damageRisk = clamp(calibration.damageRisk - matches * 2, 0, 100);
+  state.ui.qte = null;
+  return { ok: true, message: `QTE complete: ${matches}/${qte.target.length} correct sequence hits.` };
 }
 
 export function scoreCalibration(calibration, customer = null, playerSkill = 50, toolCondition = 70) {

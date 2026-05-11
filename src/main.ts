@@ -1,6 +1,6 @@
 import { createInitialState, loadGame, resetSave, saveGame } from "./core/GameState.ts";
 import { createCustomerForDay, askQuestion, evaluateRecommendation } from "./core/Customers.ts";
-import { startCalibration, applyCalibrationAction, finalizeCalibration, buildDefectFromCalibration } from "./core/Calibration.ts";
+import { startCalibration, applyCalibrationAction, finalizeCalibration, buildDefectFromCalibration, beginFullscreenQte, resolveFullscreenQte } from "./core/Calibration.ts";
 import { completeSaleTransaction, getAccessory, getInventoryItem, calculateSaleTotals, processEndOfDay, takeLoan, payTaxDeposit, buyStarterStock, processPendingInvoices } from "./core/Economy.ts";
 import { applyServiceOutcome, processPendingDefects } from "./core/Reputation.ts";
 import { acceptOutsideJob, completeOutsideJob, toggleJobChecklist, toggleJobShortcut } from "./core/Jobs.ts";
@@ -34,12 +34,10 @@ const toast = document.querySelector("#toast");
 const modalRoot = document.querySelector("#modalRoot");
 const notificationRoot = document.querySelector("#notificationRoot");
 const scene = new ShopScene(canvas);
-let state = loadGame() || createInitialState();
+let state = createInitialState();
 let dayReportTimer = null;
 
-if (!state.activeCustomer) {
-  state.activeCustomer = createCustomerForDay(state);
-}
+
 
 window.addEventListener("resize", () => scene.resize());
 scene.resize();
@@ -52,16 +50,27 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
-document.body.addEventListener("click", (event) => {
+document.body.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-action]");
   if (!button) return;
   const action = button.dataset.action;
   const id = button.dataset.id;
-  const result = handleAction(action, button, id);
+  const result = await handleAction(action, button, id);
   if (result?.message) showToast(result.message);
-  saveGame(state);
+  await saveGame(state);
   render();
 });
+
+
+function applyFatigueFromWork(minutes = 0) {
+  const fatigue = state.player.fatigue;
+  fatigue.actionsToday += 1;
+  fatigue.level = Math.max(0, Math.min(70, Math.round(fatigue.actionsToday * 3 + Math.max(0, minutes - 10) * 0.08)));
+}
+
+function getFatiguePenalty() {
+  return Math.round((state.player.fatigue?.level || 0) * 0.35);
+}
 
 function handleAction(action, button, id) {
   switch (action) {
@@ -73,26 +82,34 @@ function handleAction(action, button, id) {
       state.ui.panel = "dialogue";
       return { message: `${state.activeCustomer.name} approaches the counter.` };
     case "ask-question":
+      applyFatigueFromWork(4);
       return askQuestion(state, state.activeCustomer, id);
     case "start-sale":
       return startSaleFromButton(button);
+    case "haggle-offer":
+      return resolveHaggle(button.dataset.mode || "counter");
     case "calibration-action":
       return applyCalibrationAction(state.activeCalibration, id, state);
+    case "start-fullscreen-qte":
+      return beginFullscreenQte(state, state.activeCalibration);
+    case "qte-choice":
+      return resolveFullscreenQte(state, button.dataset.step);
     case "finalize-calibration":
       return finalizeCurrentSale();
     case "end-day":
       return endDay();
+    case "create-character":
+      return createCharacter(button);
     case "save":
-      saveGame(state);
-      return { message: "Game saved." };
+      return saveGame(state).then(() => ({ message: "Game saved." }));
     case "load":
-      state = loadGame() || state;
-      return { message: "Game loaded." };
+      return loadGame().then((loaded) => { state = loaded || state; return { message: "Game loaded." }; });
     case "reset":
-      resetSave();
+      return resetSave().then(() => {
       state = createInitialState();
       state.activeCustomer = createCustomerForDay(state);
       return { message: "Fresh shop, fresh ledger, same suspicious rent." };
+      });
     case "take-loan":
       return takeLoan(state, id);
     case "order-stock":
@@ -182,10 +199,16 @@ function finalizeCurrentSale() {
   const calibration = state.activeCalibration;
   if (!customer || !sale || !calibration) return { message: "No active sale/setup to finish." };
   const result = finalizeCalibration(state, customer);
-  const blendedSatisfaction = Math.round(customer.satisfaction * 0.35 + result.satisfaction * 0.65);
+  const fatiguePenalty = getFatiguePenalty();
+  const blendedSatisfaction = Math.max(0, Math.round(customer.satisfaction * 0.35 + result.satisfaction * 0.65 - fatiguePenalty));
   const instrument = getInventoryItem(state, sale.instrumentId);
   const totals = completeSaleTransaction(state, sale, blendedSatisfaction);
-  pushNotification(state, "review", "Review posted", `${sale.customerLabel}: ${blendedSatisfaction}/100 after buying ${sale.instrumentName}.`);
+  applyFatigueFromWork(calibration.elapsedMinutes);
+  const haggleNote = sale.haggleMode ? ` (${sale.haggleMode} haggle)` : "";
+  const reviewLine = sale.haggleMode === "give-in"
+    ? `I paid below industry and got below industry product. ${blendedSatisfaction}/100.`
+    : `${sale.customerLabel}: ${blendedSatisfaction}/100 after buying ${sale.instrumentName}${haggleNote}.`;
+  pushNotification(state, "review", "Review posted", reviewLine);
   createWarrantyRecord(state, sale, totals, result, calibration);
   applyServiceOutcome(state, {
     satisfaction: blendedSatisfaction,
@@ -208,6 +231,7 @@ function finalizeCurrentSale() {
 
 function endDay() {
   const dayEnded = state.day;
+  const fatigueBeforeReset = state.player.fatigue.level;
   const cashBefore = state.cash;
   const ledgerCountBefore = state.ledger.length;
   const events = [];
@@ -237,8 +261,10 @@ function endDay() {
   if (accident) events.push(`${accident.type}: ${accident.itemName} needs inventory repair.`);
   if (onlineOrder) events.push(`New online order posted: ${onlineOrder.quantity} x ${onlineOrder.itemName}.`);
   if (!state.activeCustomer && state.day <= 7) state.activeCustomer = createCustomerForDay(state);
+  state.player.fatigue.actionsToday = 0;
+  state.player.fatigue.level = Math.max(0, Math.round(fatigueBeforeReset * 0.35));
   state.dayReport = buildDayReport(state, dayEnded, cashBefore, ledgerCountBefore, events);
-  saveGame(state);
+  void saveGame(state);
   scheduleDayReportUnlock();
   return { message: `Day ${state.day} begins. ${state.milestoneText}` };
 }
@@ -301,7 +327,7 @@ function render() {
 }
 
 function renderModal() {
-  modalRoot.innerHTML = renderDayReport(state.dayReport);
+  modalRoot.innerHTML = `${renderDayReport(state.dayReport)}${renderQteModal(state)}`;
   if (state.dayReport) {
     const closeButton = document.querySelector("#closeDayReport");
     const remaining = Math.max(0, Math.ceil((state.dayReport.unlockAt - Date.now()) / 1000));
@@ -320,6 +346,7 @@ function renderHud() {
     <div><strong>${Math.round(state.stats.publicReputation)}</strong><span>public rep</span></div>
     <div><strong>${Math.round(state.stats.industryHonor)}</strong><span>industry honor</span></div>
     <div><strong>${Math.round(state.stats.creditScore)}</strong><span>credit</span></div>
+    <div><strong>${Math.round(state.player.fatigue.level)}</strong><span>fatigue</span></div>
   `;
 }
 
@@ -336,7 +363,45 @@ function renderPanel() {
   else if (panel === "coffee") sidePanel.innerHTML = renderCoffeePanel(state);
   else if (panel === "map") sidePanel.innerHTML = renderMapPanel(state);
   else if (panel === "outside-job") sidePanel.innerHTML = renderOutsideJobPanel(state);
-  else sidePanel.innerHTML = renderWelcomePanel();
+  else sidePanel.innerHTML = state.player.created ? renderWelcomePanel() : renderCharacterCreator();
+}
+
+
+function createCharacter(button) {
+  const key = button.dataset.skill;
+  if (!key) {
+    state.player.created = true;
+    state.ui.panel = "welcome";
+    return { message: "Character created. Open shop." };
+  }
+  if (state.player.skillPoints <= 0) return { message: "No skill points left." };
+  if (!(key in state.player.skill)) return { message: "Unknown skill." };
+  state.player.skill[key] += 2;
+  state.player.skillPoints -= 1;
+  return { message: `${key} increased.` };
+}
+
+function resolveHaggle(mode) {
+  if (!state.activeSale) return { message: "No active sale to haggle." };
+  state.activeSale.haggleMode = mode;
+  if (mode === "give-in") state.activeSale.servicePrice *= 0.75;
+  if (mode === "counter") state.activeSale.servicePrice *= 0.9;
+  return { message: `Haggle set: ${mode}.` };
+}
+
+function renderCharacterCreator() {
+  const trees = ["sales", "repair", "fame", "insight", "economy", "honesty"];
+  return `
+    <section class="panel-section">
+      <h2>Create Character</h2>
+      <p>Distribute skill points into your skill trees before day one.</p>
+      <p class="pill">Points left: ${state.player.skillPoints}</p>
+      <div class="action-grid">
+        ${trees.map((tree) => `<button data-action="create-character" data-skill="${tree}">${tree}: ${Math.round(state.player.skill[tree] || 0)} (+2)</button>`).join("")}
+      </div>
+      <button class="primary" data-action="create-character">Start game</button>
+    </section>
+  `;
 }
 
 function renderWelcomePanel() {
@@ -354,6 +419,25 @@ function renderWelcomePanel() {
   `;
 }
 
+
+function renderQteModal(state) {
+  const qte = state.ui.qte;
+  if (!qte) return "";
+  const options = ["RELIEF", "ACTION", "INTONATION", "TUNING"];
+  return `
+    <div class="fullscreen-qte">
+      <section class="qte-card">
+        <h2>Full-Screen Setup QTE</h2>
+        <p>Follow pro adjustment order for ${qte.profileLabel}. This teaches sequence and rewards precise work.</p>
+        <div class="qte-target">Target sequence: ${qte.target.join(" → ")}</div>
+        <p class="muted">Chosen: ${qte.chosen.join(" → ") || "none"}</p>
+        <ul class="fact-list">${qte.education.map((line)=>`<li>${line}</li>`).join("")}</ul>
+        <div class="qte-grid">${options.map((o)=>`<button data-action="qte-choice" data-step="${o}">${o}</button>`).join("")}</div>
+      </section>
+    </div>
+  `;
+}
+
 function showToast(message) {
   state.ui.toast = message;
   toast.textContent = message;
@@ -365,5 +449,12 @@ function frame() {
   requestAnimationFrame(frame);
 }
 
-render();
-requestAnimationFrame(frame);
+async function initializeGame() {
+  const loaded = await loadGame();
+  state = loaded || createInitialState();
+  if (!state.activeCustomer) state.activeCustomer = createCustomerForDay(state);
+  render();
+  requestAnimationFrame(frame);
+}
+
+initializeGame();
