@@ -1,13 +1,7 @@
 {
   "version": 2,
-  "headers": [
-    {
-      "source": "/src/(.*)\\.ts",
-      "headers": [
-        { "key": "Content-Type", "value": "text/javascript; charset=utf-8" }
-      ]
-    }
-  ],
+  "buildCommand": "node tools/emit-js.mjs",
+  "outputDirectory": "dist",
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/$1" },
     { "handle": "filesystem" },

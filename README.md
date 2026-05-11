@@ -184,9 +184,9 @@ The setup and installation values are game targets inspired by real instrument s
 
 ## Deploy on Vercel (No build setup)
 
-This repo now deploys directly to Vercel as static files plus serverless API routes.
+This repo now deploys to Vercel using a zero-dependency build step that emits browser-ready `.js` modules into `dist/`, plus serverless API routes.
 
-- `vercel.json` forces `.ts` module files under `/src` to be served as JavaScript and routes `/api/*` to serverless handlers.
+- `vercel.json` runs `node tools/emit-js.mjs`, serves `dist/`, and routes `/api/*` to serverless handlers.
 - Save/load/reset calls go to:
   - `POST /api/save`
   - `GET /api/load`
@@ -197,6 +197,7 @@ This repo now deploys directly to Vercel as static files plus serverless API rou
 2. Click **Deploy**.
 3. Open your Vercel domain and play.
 4. Use in-game Save/Load; data is stored through Vercel functions.
+5. Confirm HUD and canvas draw on first load (this verifies compiled JS modules are loading, not raw `.ts`).
 
 
 > Note: current server storage uses function-local `/tmp` for zero-setup testing. For durable multi-user persistence, switch API handlers to Vercel KV or Postgres.
