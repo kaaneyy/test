@@ -83,11 +83,11 @@ button.primary {
 
 .play-area {
   display: grid;
-  grid-template-rows: auto minmax(520px, calc(100dvh - 120px)) auto;
+  grid-template-rows: auto minmax(520px, calc(100dvh - 120px));
   min-width: 0;
   gap: 8px;
   position: sticky;
-  padding-left: 86px;
+  padding-left: 168px;
   top: 12px;
   max-height: calc(100dvh - 24px);
 }
