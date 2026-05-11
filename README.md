@@ -181,3 +181,21 @@ Keep the simulation data-driven. The files in `src/data/` should eventually beco
 ## Simulation Disclaimer
 
 The setup and installation values are game targets inspired by real instrument setup practices. They are not universal specifications. This game is not a substitute for professional training or safe repair practice, especially for expensive, antique, electrical, fragile, or concert-level instruments.
+
+## Deploy on Vercel (No build setup)
+
+This repo now deploys directly to Vercel as a static app plus serverless API routes.
+
+- `vercel.json` routes static files and `/api/*` endpoints.
+- Save/load/reset calls go to:
+  - `POST /api/save`
+  - `GET /api/load`
+  - `POST /api/reset`
+
+### Quick test
+1. Import the repo into Vercel.
+2. Click **Deploy**.
+3. Open your Vercel domain and play.
+4. Use in-game Save/Load; data is stored through Vercel functions.
+
+> Note: current server storage uses function-local `/tmp` for zero-setup testing. For durable multi-user persistence, switch API handlers to Vercel KV or Postgres.

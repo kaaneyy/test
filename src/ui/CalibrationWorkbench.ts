@@ -17,6 +17,13 @@ export function renderCalibrationWorkbench(state) {
   const modifier = preferenceModifiers[calibration.preferenceId];
   const service = setupProcedures.find((item) => item.id === calibration.serviceId);
   const m = calibration.measurements;
+  const instrumentGroup = calibration.instrumentName.toLowerCase().includes("piano") ? "piano" : calibration.instrumentName.toLowerCase().includes("bass") ? "bass" : "guitar";
+  const allowedActions = calibrationActions.filter((action) => {
+    if (instrumentGroup === "piano") return !["raise-pickups", "lower-pickups", "clean-electronics"].includes(action.id);
+    if (instrumentGroup === "bass") return action.id !== "condition-board";
+    return true;
+  });
+  const quickEventPrompt = instrumentGroup === "piano" ? "Strike the matching key timing" : instrumentGroup === "bass" ? "Lock in groove timing" : "Nail the string bend timing";
   return `
     <section class="panel-section calibration-panel">
       <h2>${calibration.instrumentName}</h2>
@@ -40,8 +47,9 @@ export function renderCalibrationWorkbench(state) {
       </div>
       <p class="quote">${summarizeMeasurements(calibration)}</p>
       <h3>Tools and Actions</h3>
+      <p class="quote">Mini game: ${quickEventPrompt}. Use <strong>Quick focus event</strong> like a quick-time event during adjustments.</p>
       <div class="action-grid">
-        ${calibrationActions.map((action) => `
+        ${allowedActions.map((action) => `
           <button data-action="calibration-action" data-id="${action.id}" class="${action.shortcut ? "danger-button" : ""}" title="${action.help}">
             ${action.label}
           </button>

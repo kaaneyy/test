@@ -22,6 +22,7 @@ export const calibrationActions = [
   { id: "condition-board", label: "Condition fretboard if appropriate", step: "clean", minutes: 8, help: "Useful on dry unfinished boards; not every board needs oil." },
   { id: "fret-check", label: "Check frets with rocker", step: "fret-check", minutes: 10, help: "Finds uneven frets before promising buzz-free low action." },
   { id: "play-test", label: "Play test with customer style", step: "play-test", minutes: 12, help: "Catches buzz, unstable tuning, and preference mismatch." },
+  { id: "qte-focus", label: "Quick focus event", step: "qte", minutes: 3, help: "Mini quick-time style check. Success improves outcome; failure blurs judgement." },
   { id: "document", label: "Document final measurements", step: "document", minutes: 10, help: "Raises honor and lowers legal risk on valuable work." },
   { id: "honest-warning", label: "Warn about limits before overpromising", step: "honesty", minutes: 4, help: "May lower short-term excitement but protects trust." },
   { id: "skip-intonation", label: "Shortcut: skip full intonation", step: "shortcut", minutes: -8, shortcut: true, severity: 0.45, dishonest: false },
@@ -56,6 +57,7 @@ export function startCalibration(state, instrument, customer, serviceId) {
     trussMovesSinceSettle: 0,
     finalized: false,
     finalScore: null,
+    qteStreak: 0,
   };
   state.activeCalibration = calibration;
   return calibration;
@@ -198,6 +200,19 @@ export function applyCalibrationAction(calibration, actionId, state) {
     case "fret-check":
       m.fretEvenness = clamp(m.fretEvenness + 2, 0, 100);
       calibration.documentationQuality += 4;
+      break;
+    case "qte-focus":
+      {
+        const success = state.rng.next() > 0.35;
+        if (success) {
+          calibration.qteStreak += 1;
+          calibration.documentationQuality += 3;
+          m.tuningStability = clamp(m.tuningStability + 4, 0, 100);
+        } else {
+          calibration.damageRisk = clamp(calibration.damageRisk + 4, 0, 100);
+          m.buzzRisk = clamp(m.buzzRisk + 5, 0, 100);
+        }
+      }
       break;
     case "play-test":
       m.playTestPassed = estimateBuzzRisk(calibration) < 36 && m.tuningStability > 58;
