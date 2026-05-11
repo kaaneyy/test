@@ -1,4 +1,4 @@
-import { calibrationActions, scoreCalibration, summarizeMeasurements, getCalibrationReadiness } from "../core/Calibration.ts";
+import { calibrationActions, scoreCalibration, summarizeMeasurements, getCalibrationReadiness, estimateAdjustmentCost } from "../core/Calibration.ts";
 import { calibrationProfiles, preferenceModifiers, setupProcedures } from "../data/calibrationProfiles.ts";
 
 export function renderCalibrationWorkbench(state) {
@@ -51,14 +51,14 @@ export function renderCalibrationWorkbench(state) {
       ${readiness.missingSteps.length ? `<p class="quote">Missing before sale: ${readiness.missingSteps.join(", ")}.</p>` : ""}
       <h3>Tools and Actions</h3>
       <p class="muted">Educational path: inspect → relief → action → intonation → play test → document. Following this order improves consistency and score.</p>
-      <button data-action="start-fullscreen-qte">Start full-screen setup QTE</button>
+      <div class="button-row"><button data-action="start-fullscreen-qte">Start full-screen setup QTE</button><button data-action="auto-adjust">Auto complete required steps (premium)</button></div>
       <p class="quote">Mini game: ${quickEventPrompt}. Use <strong>Quick focus event</strong> like a quick-time event during adjustments.</p>
       <div class="action-grid">
-        ${allowedActions.map((action) => `
-          <button data-action="calibration-action" data-id="${action.id}" class="${action.shortcut ? "danger-button" : ""}" title="${action.help}">
-            ${action.label}
+        ${allowedActions.map((action) => { const needed = readiness.missingSteps.includes(action.step); const cost = action.shortcut ? 0 : estimateAdjustmentCost(action); return `
+          <button data-action="calibration-action" data-id="${action.id}" class="${action.shortcut ? "danger-button" : ""} ${needed ? "needed-action" : ""}" title="${action.help}">
+            ${action.label} ${needed ? "• needed" : ""} ($${cost.toFixed(2)})
           </button>
-        `).join("")}
+        `; }).join("")}
       </div>
       <div class="score-details">
         <h3>Scoring Notes</h3>

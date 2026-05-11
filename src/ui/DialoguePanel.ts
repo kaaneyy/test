@@ -41,6 +41,7 @@ export function renderDialoguePanel(state) {
         </div>
       </div>
       <h3>Recommend</h3>
+      <button data-action="pitch-special">Pitch as special edition</button>
       <div class="recommendations">
         ${recommendations.map(({ item, score }) => renderRecommendation(state, item, score, customer)).join("") || "<p>No suitable stock in budget. You may need to order inventory.</p>"}
       </div>

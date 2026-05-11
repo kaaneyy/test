@@ -92,6 +92,10 @@ function handleAction(action, button, id) {
       return applyCalibrationActionWithCost(id);
     case "start-fullscreen-qte":
       return beginFullscreenQte(state, state.activeCalibration);
+    case "auto-adjust":
+      return runAutoAdjust();
+    case "pitch-special":
+      return pitchSpecialEdition();
     case "qte-choice":
       return resolveFullscreenQte(state, button.dataset.step);
     case "finalize-calibration":
@@ -215,6 +219,42 @@ function applyCalibrationActionWithCost(actionId) {
     }
   }
   return { ...result, message: `${result.message} | Adjustment cost -$${cost.toFixed(2)}` };
+}
+
+
+function runAutoAdjust() {
+  const calibration = state.activeCalibration;
+  if (!calibration) return { message: "No active setup." };
+  const readiness = getCalibrationReadiness(calibration);
+  const map = { inspect: "inspect", relief: "tune", action: "raise-bridge", "nut-check": "lubricate-nut", intonation: "intonate-back", tune: "tune", stretch: "stretch-strings", "play-test": "play-test", document: "document", clean: "clean-body" };
+  let total = 0;
+  for (const step of readiness.missingSteps) {
+    const actionId = map[step];
+    if (!actionId) continue;
+    const result = applyCalibrationActionWithCost(actionId);
+    if (result?.ok) total += estimateAdjustmentCost(calibrationActions.find((a) => a.id === actionId)) * 1.35;
+  }
+  state.cash -= total;
+  return { message: `Auto-adjust applied required steps. Premium labor -$${total.toFixed(2)}.` };
+}
+
+function pitchSpecialEdition() {
+  const customer = state.activeCustomer;
+  if (!customer) return { message: "No customer to pitch." };
+  if (customer.knowledge < 45) {
+    customer.satisfaction = Math.min(100, customer.satisfaction + 6);
+    customer.responseLog.unshift("They believed the special-edition story and felt excited.");
+    return { message: "Special-edition pitch landed with this beginner customer." };
+  }
+  customer.satisfaction = Math.max(0, customer.satisfaction - 4);
+  customer.responseLog.unshift("They asked for provenance and challenged the special-edition claim.");
+  return { message: "Pitch backfired: informed customer asked for proof." };
+}
+
+function getRunningProfitToday() {
+  const today = state.day;
+  const todayEntries = state.ledger.filter((entry) => entry.day === today && !entry.meta?.accountingOnly);
+  return todayEntries.reduce((sum, entry) => sum + entry.amount, 0);
 }
 
 function finalizeCurrentSale() {
@@ -378,6 +418,7 @@ function renderHud() {
     <div><strong>${Math.round(state.stats.industryHonor)}</strong><span>industry honor</span></div>
     <div><strong>${Math.round(state.stats.creditScore)}</strong><span>credit</span></div>
     <div><strong>${Math.round(state.player.fatigue.level)}</strong><span>fatigue</span></div>
+    <div><strong>$${getRunningProfitToday().toFixed(2)}</strong><span>profit today</span></div>
   `;
 }
 

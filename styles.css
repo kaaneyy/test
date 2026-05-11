@@ -564,3 +564,5 @@ li {
 .store-zones{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:10px;}
 .store-zone{border:1px solid var(--line);background:#f6efe2;border-radius:8px;padding:10px;text-align:center;}
 .store-zone strong{display:block;margin-bottom:4px;}
+
+.needed-action{outline:2px solid #d38b2a;background:#fff2dc;}
