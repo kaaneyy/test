@@ -159,6 +159,7 @@ export function createInitialState(seed = 44107) {
       selectedServiceId: "basic-setup",
       selectedOutsideJobId: null,
       qte: null,
+      selectedShelfSlot: null,
     },
   };
 }
