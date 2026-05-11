@@ -72,6 +72,7 @@ button.primary {
 .app-shell {
   display: grid;
   grid-template-columns: 88px minmax(0, 1.45fr) minmax(360px, 0.95fr);
+  grid-template-columns: minmax(0, 1.45fr) minmax(360px, 0.95fr);
   gap: 12px;
   width: 100%;
   min-height: 100dvh;
@@ -88,6 +89,7 @@ button.primary {
   gap: 8px;
   position: sticky;
   padding-left: 0;
+  padding-left: 168px;
   top: 12px;
   max-height: calc(100dvh - 24px);
 }
@@ -169,6 +171,14 @@ small {
   display: grid;
   gap: 6px;
   width: 100%;
+.bottom-bar {
+  position: absolute;
+  left: 8px;
+  top: 128px;
+  display: grid;
+  gap: 6px;
+  width: 74px;
+  z-index: 6;
 }
 
 .tabs button,
@@ -528,6 +538,8 @@ li {
 
   .tabs,
   .bottom-bar {
+  .bottom-bar {
+    position: static;
     display: flex;
     flex-wrap: wrap;
     width: auto;
