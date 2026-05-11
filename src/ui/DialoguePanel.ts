@@ -41,10 +41,21 @@ export function renderDialoguePanel(state) {
         </div>
       </div>
       <h3>Recommend</h3>
+      <button data-action="pitch-special">Pitch as special edition</button>
       <div class="recommendations">
         ${recommendations.map(({ item, score }) => renderRecommendation(state, item, score, customer)).join("") || "<p>No suitable stock in budget. You may need to order inventory.</p>"}
       </div>
       ${top ? `
+        <div class="sale-card">
+          <h3>Haggle Handling</h3>
+          <p>Some NPCs negotiate hard. Counter, give in, or hold line before finalizing setup.</p>
+          <div class="button-row">
+            <button data-action="haggle-offer" data-mode="counter">Counter offer</button>
+            <button data-action="haggle-offer" data-mode="give-in">Give in</button>
+            <button data-action="haggle-offer" data-mode="hold">Hold line</button>
+          </div>
+        </div>
+      
         <div class="sale-card">
           <h3>Quick Sale Bundle</h3>
           <p>${top.name} + ${accessories.map((item) => item.name).join(", ")} + ${service.label}</p>
