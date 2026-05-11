@@ -531,6 +531,15 @@ li {
     width: auto;
   }
 
+  .tabs,
+  .bottom-bar {
+  .bottom-bar {
+    position: static;
+    display: flex;
+    flex-wrap: wrap;
+    width: auto;
+  }
+
   .side-panel {
     max-height: none;
   }
