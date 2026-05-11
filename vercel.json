@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "buildCommand": "node tools/emit-js.mjs",
+  "outputDirectory": "dist",
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
+}
