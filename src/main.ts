@@ -13,7 +13,7 @@ import { runStaffAudit } from "./core/Operations.ts";
 import { applyPianoAction } from "./core/Piano.ts";
 import { hostCoffeeChat, restockCoffee, sellCoffee } from "./core/Coffee.ts";
 import { maybeTriggerAccident, repairDamagedInventory } from "./core/Accidents.ts";
-import { fulfillOnlineOrder, maybePostOnlineOrder, processOnlineOrderDeadlines } from "./core/OnlineOrders.ts";
+import { fulfillOnlineOrder, maybePostOnlineOrder, processOnlineOrderDeadlines, postGuaranteedOnlineOrder } from "./core/OnlineOrders.ts";
 import { pruneNotifications, pushNotification } from "./core/Notifications.ts";
 import { setupProcedures } from "./data/calibrationProfiles.ts";
 import { ShopScene } from "./ui/ShopScene.ts";
@@ -52,6 +52,10 @@ canvas.addEventListener("click", (event) => {
 });
 
 window.addEventListener("keydown", (event) => {
+  if (state.ui.qte?.active) {
+    handleQteKey(event.key.toUpperCase());
+    return;
+  }
   if (event.key.toLowerCase() === "e") interactNearby();
   if (event.key === "Escape") {
     state.ui.panel = "shop";
@@ -100,7 +104,7 @@ function handleAction(action, button, id) {
     case "calibration-action":
       return applyCalibrationActionWithCost(id);
     case "start-fullscreen-qte":
-      return beginFullscreenQte(state, state.activeCalibration);
+      return startKeyboardQte();
     case "auto-adjust":
       return runAutoAdjust();
     case "pitch-special":
@@ -237,6 +241,28 @@ function applyCalibrationActionWithCost(actionId) {
 }
 
 
+function handleQteKey(key) {
+  const qte = state.ui.qte;
+  if (!qte?.active) return;
+  if (Date.now() > qte.endsAt) {
+    state.ui.qte = null;
+    showToast("QTE failed: time expired.");
+    return;
+  }
+  const expected = qte.sequence[qte.index];
+  if (key === expected) {
+    qte.index += 1;
+    if (qte.index >= qte.sequence.length) {
+      state.activeCalibration.documentationQuality += 12;
+      state.activeCalibration.explanationQuality += 10;
+      state.ui.qte = null;
+      showToast("QTE success: setup confidence improved.");
+    }
+  } else {
+    state.activeCalibration.damageRisk = Math.min(100, state.activeCalibration.damageRisk + 3);
+  }
+}
+
 function runAutoAdjust() {
   const calibration = state.activeCalibration;
   if (!calibration) return { message: "No active setup." };
@@ -281,6 +307,16 @@ function clearShelf(slot) {
   if (!Number.isInteger(idx) || idx < 0 || idx > 2) return { message: "Invalid shelf slot." };
   state.shelfDisplay[idx] = null;
   return { message: `Shelf ${idx + 1} cleared.` };
+}
+
+
+function startKeyboardQte() {
+  const calibration = state.activeCalibration;
+  if (!calibration) return { message: "No active setup." };
+  const keys = ["A", "S", "D", "F", "J", "K", "L"];
+  const sequence = Array.from({ length: 8 }, () => keys[Math.floor(state.rng.next() * keys.length)]);
+  state.ui.qte = { active: true, sequence, index: 0, endsAt: Date.now() + 9000 };
+  return { message: "QTE started: type the key sequence before timer ends." };
 }
 
 function answerRoamer(mode) {
@@ -334,6 +370,7 @@ function finalizeCurrentSale() {
   if (defect) state.pendingDefects.push(defect);
   state.player.skill.guitarSetup = Math.min(100, state.player.skill.guitarSetup + 1.2);
   state.player.skill.sales = Math.min(100, state.player.skill.sales + 0.8);
+  state.dayGoals.customersServed = (state.dayGoals.customersServed || 0) + 1;
   state.activeCustomer = null;
   state.activeSale = null;
   state.activeCalibration = null;
@@ -342,6 +379,9 @@ function finalizeCurrentSale() {
 }
 
 function endDay() {
+  if ((state.dayGoals?.customersServed || 0) < (state.dayGoals?.customersTarget || 0)) {
+    return { message: `Serve more customers before closing day: ${state.dayGoals.customersServed}/${state.dayGoals.customersTarget}.` };
+  }
   const dayEnded = state.day;
   const fatigueBeforeReset = state.player.fatigue.level;
   const cashBefore = state.cash;
@@ -359,7 +399,9 @@ function endDay() {
   expireWarranties(state);
   processExpansionDaily(state);
   const accident = maybeTriggerAccident(state);
-  const onlineOrder = maybePostOnlineOrder(state);
+  let onlineOrder = maybePostOnlineOrder(state);
+  const todayPosted = state.onlineOrders.filter((order) => order.day === state.day && order.status === "posted").length;
+  if (todayPosted < 1) onlineOrder = postGuaranteedOnlineOrder(state) || onlineOrder;
   maybeTriggerDailyEvent(state);
   if (arrivals.length) {
     state.ui.toast = `${arrivals.length} supplier order(s) arrived.`;
@@ -373,6 +415,8 @@ function endDay() {
   if (accident) events.push(`${accident.type}: ${accident.itemName} needs inventory repair.`);
   if (onlineOrder) events.push(`New online order posted: ${onlineOrder.quantity} x ${onlineOrder.itemName}.`);
   if (!state.activeCustomer && state.day <= 7) state.activeCustomer = createCustomerForDay(state);
+  state.dayGoals.customersServed = 0;
+  state.dayGoals.customersTarget = 2 + Math.floor(state.rng.next() * 3);
   state.player.fatigue.actionsToday = 0;
   state.player.fatigue.level = Math.max(0, Math.round(fatigueBeforeReset * 0.35));
   state.dayReport = buildDayReport(state, dayEnded, cashBefore, ledgerCountBefore, events);
@@ -460,6 +504,7 @@ function renderHud() {
     <div><strong>${Math.round(state.stats.creditScore)}</strong><span>credit</span></div>
     <div><strong>${Math.round(state.player.fatigue.level)}</strong><span>fatigue</span></div>
     <div><strong>$${getRunningProfitToday().toFixed(2)}</strong><span>profit today</span></div>
+    <div><strong>${state.dayGoals.customersServed}/${state.dayGoals.customersTarget}</strong><span>customers served</span></div>
   `;
 }
 
@@ -549,17 +594,16 @@ function renderWelcomePanel() {
 
 function renderQteModal(state) {
   const qte = state.ui.qte;
-  if (!qte) return "";
-  const options = ["RELIEF", "ACTION", "INTONATION", "TUNING"];
+  if (!qte?.active) return "";
+  const remaining = Math.max(0, ((qte.endsAt - Date.now()) / 1000).toFixed(1));
   return `
     <div class="fullscreen-qte">
       <section class="qte-card">
-        <h2>Full-Screen Setup QTE</h2>
-        <p>Follow pro adjustment order for ${qte.profileLabel}. This teaches sequence and rewards precise work.</p>
-        <div class="qte-target">Target sequence: ${qte.target.join(" → ")}</div>
-        <p class="muted">Chosen: ${qte.chosen.join(" → ") || "none"}</p>
-        <ul class="fact-list">${qte.education.map((line)=>`<li>${line}</li>`).join("")}</ul>
-        <div class="qte-grid">${options.map((o)=>`<button data-action="qte-choice" data-step="${o}">${o}</button>`).join("")}</div>
+        <h2>Full-Screen Keyboard QTE</h2>
+        <p>Press the random key sequence before time runs out.</p>
+        <div class="qte-target">${qte.sequence.map((k, i) => i < qte.index ? "✓" : k).join(" ")}</div>
+        <p class="muted">Next key: <strong>${qte.sequence[qte.index] || "Done"}</strong> | Time left: ${remaining}s</p>
+        <p class="quote">Wrong keys increase setup risk. Correct sequence boosts documentation and explanation quality.</p>
       </section>
     </div>
   `;

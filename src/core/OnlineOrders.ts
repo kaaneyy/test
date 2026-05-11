@@ -49,3 +49,23 @@ export function processOnlineOrderDeadlines(state) {
   }
   return expired;
 }
+
+
+export function postGuaranteedOnlineOrder(state) {
+  const candidates = state.inventory.filter((item) => item.stock > 0 && item.sellPrice < 1200);
+  if (!candidates.length) return null;
+  const item = state.rng.pick(candidates);
+  const order = {
+    id: `online-guaranteed-${state.day}-${state.onlineOrders.length}`,
+    day: state.day,
+    itemId: item.id,
+    itemName: item.name,
+    quantity: 1,
+    gross: round(item.sellPrice * 1.03, 2),
+    dueDay: state.day + 2,
+    status: "posted",
+  };
+  state.onlineOrders.unshift(order);
+  pushNotification(state, "online-order", "Guaranteed online order", `Daily baseline order posted: ${item.name}.`);
+  return order;
+}

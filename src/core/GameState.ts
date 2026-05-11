@@ -115,6 +115,7 @@ export function createInitialState(seed = 44107) {
     shelfDisplay: [null, null, null],
     incidents: [],
     randomEventsSeen: [],
+    dayGoals: { customersTarget: 2, customersServed: 0 },
     unlocked: {
       bank: false,
       employees: false,
