@@ -236,7 +236,11 @@ function scoreAccessoryForCustomer(accessory, customer) {
 export function recommendInventory(state, customer) {
   return state.inventory
     .filter((item) => item.stock > 0 && item.sellPrice <= customer.budget * 1.08)
-    .map((item) => ({ item, score: scoreInstrumentForCustomer(item, customer) }))
+    .map((item) => {
+      const shelf = (state.shelfDisplay || []).find((slot) => slot?.id === item.id);
+      const shelfDelta = shelf ? shelf.bonus + shelf.debuff : 0;
+      return { item, score: scoreInstrumentForCustomer(item, customer) + shelfDelta };
+    })
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
 }

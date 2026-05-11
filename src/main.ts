@@ -1,6 +1,6 @@
 import { createInitialState, loadGame, resetSave, saveGame } from "./core/GameState.ts";
 import { createCustomerForDay, askQuestion, evaluateRecommendation } from "./core/Customers.ts";
-import { startCalibration, applyCalibrationAction, finalizeCalibration, buildDefectFromCalibration } from "./core/Calibration.ts";
+import { startCalibration, applyCalibrationAction, finalizeCalibration, buildDefectFromCalibration, beginFullscreenQte, resolveFullscreenQte, getCalibrationReadiness, calibrationActions, estimateAdjustmentCost } from "./core/Calibration.ts";
 import { completeSaleTransaction, getAccessory, getInventoryItem, calculateSaleTotals, processEndOfDay, takeLoan, payTaxDeposit, buyStarterStock, processPendingInvoices } from "./core/Economy.ts";
 import { applyServiceOutcome, processPendingDefects } from "./core/Reputation.ts";
 import { acceptOutsideJob, completeOutsideJob, toggleJobChecklist, toggleJobShortcut } from "./core/Jobs.ts";
@@ -13,7 +13,7 @@ import { runStaffAudit } from "./core/Operations.ts";
 import { applyPianoAction } from "./core/Piano.ts";
 import { hostCoffeeChat, restockCoffee, sellCoffee } from "./core/Coffee.ts";
 import { maybeTriggerAccident, repairDamagedInventory } from "./core/Accidents.ts";
-import { fulfillOnlineOrder, maybePostOnlineOrder, processOnlineOrderDeadlines } from "./core/OnlineOrders.ts";
+import { fulfillOnlineOrder, maybePostOnlineOrder, processOnlineOrderDeadlines, postGuaranteedOnlineOrder } from "./core/OnlineOrders.ts";
 import { pruneNotifications, pushNotification } from "./core/Notifications.ts";
 import { setupProcedures } from "./data/calibrationProfiles.ts";
 import { ShopScene } from "./ui/ShopScene.ts";
@@ -34,17 +34,28 @@ const toast = document.querySelector("#toast");
 const modalRoot = document.querySelector("#modalRoot");
 const notificationRoot = document.querySelector("#notificationRoot");
 const scene = new ShopScene(canvas);
-let state = loadGame() || createInitialState();
+let state = createInitialState();
 let dayReportTimer = null;
 
-if (!state.activeCustomer) {
-  state.activeCustomer = createCustomerForDay(state);
-}
+
 
 window.addEventListener("resize", () => scene.resize());
 scene.resize();
 
+canvas.addEventListener("click", (event) => {
+  const slot = scene.getShelfSlotFromClick(event, state);
+  if (slot === null || slot === undefined) return;
+  state.ui.selectedShelfSlot = slot;
+  state.ui.panel = "inventory";
+  showToast(`Shelf ${slot + 1} selected. Choose an item from inventory to place.`);
+  render();
+});
+
 window.addEventListener("keydown", (event) => {
+  if (state.ui.qte?.active) {
+    handleQteKey(event.key.toUpperCase());
+    return;
+  }
   if (event.key.toLowerCase() === "e") interactNearby();
   if (event.key === "Escape") {
     state.ui.panel = "shop";
@@ -52,16 +63,27 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
-document.body.addEventListener("click", (event) => {
+document.body.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-action]");
   if (!button) return;
   const action = button.dataset.action;
   const id = button.dataset.id;
-  const result = handleAction(action, button, id);
+  const result = await handleAction(action, button, id);
   if (result?.message) showToast(result.message);
-  saveGame(state);
+  await saveGame(state);
   render();
 });
+
+
+function applyFatigueFromWork(minutes = 0) {
+  const fatigue = state.player.fatigue;
+  fatigue.actionsToday += 1;
+  fatigue.level = Math.max(0, Math.min(70, Math.round(fatigue.actionsToday * 3 + Math.max(0, minutes - 10) * 0.08)));
+}
+
+function getFatiguePenalty() {
+  return Math.round((state.player.fatigue?.level || 0) * 0.35);
+}
 
 function handleAction(action, button, id) {
   switch (action) {
@@ -73,26 +95,44 @@ function handleAction(action, button, id) {
       state.ui.panel = "dialogue";
       return { message: `${state.activeCustomer.name} approaches the counter.` };
     case "ask-question":
+      applyFatigueFromWork(4);
       return askQuestion(state, state.activeCustomer, id);
     case "start-sale":
       return startSaleFromButton(button);
+    case "haggle-offer":
+      return resolveHaggle(button.dataset.mode || "counter");
     case "calibration-action":
-      return applyCalibrationAction(state.activeCalibration, id, state);
+      return applyCalibrationActionWithCost(id);
+    case "start-fullscreen-qte":
+      return startKeyboardQte();
+    case "auto-adjust":
+      return runAutoAdjust();
+    case "pitch-special":
+      return pitchSpecialEdition();
+    case "answer-roamer":
+      return answerRoamer(button.dataset.mode || "neutral");
+    case "assign-shelf":
+      return assignShelf(button.dataset.slot, id);
+    case "clear-shelf":
+      return clearShelf(button.dataset.slot);
+    case "qte-choice":
+      return resolveFullscreenQte(state, button.dataset.step);
     case "finalize-calibration":
       return finalizeCurrentSale();
     case "end-day":
       return endDay();
+    case "create-character":
+      return createCharacter(button);
     case "save":
-      saveGame(state);
-      return { message: "Game saved." };
+      return saveGame(state).then(() => ({ message: "Game saved." }));
     case "load":
-      state = loadGame() || state;
-      return { message: "Game loaded." };
+      return loadGame().then((loaded) => { state = loaded || state; return { message: "Game loaded." }; });
     case "reset":
-      resetSave();
+      return resetSave().then(() => {
       state = createInitialState();
       state.activeCustomer = createCustomerForDay(state);
       return { message: "Fresh shop, fresh ledger, same suspicious rent." };
+      });
     case "take-loan":
       return takeLoan(state, id);
     case "order-stock":
@@ -176,16 +216,147 @@ function startSaleFromButton(button) {
   return { message: `Sale prepared. Payment waits until ${service.label.toLowerCase()} is complete.` };
 }
 
+
+function applyCalibrationActionWithCost(actionId) {
+  const result = applyCalibrationAction(state.activeCalibration, actionId, state);
+  if (!result?.ok) return result;
+  const action = calibrationActions.find((item) => item.id === actionId);
+  const cost = action?.shortcut ? 0 : estimateAdjustmentCost(action);
+  state.cash = Math.max(-999999, state.cash - cost);
+  if (state.activeSale) {
+    state.activeSale.adjustmentCost = (state.activeSale.adjustmentCost || 0) + cost;
+    const projectedProfit = (state.activeSale.totals?.profit || 0) - state.activeSale.adjustmentCost;
+    if (projectedProfit < 0) {
+      pushNotification(state, "warning", "Adjustment cost warning", `Adjustments on ${state.activeSale.instrumentName} are now below profit by $${Math.abs(projectedProfit).toFixed(2)}.`);
+    }
+    if (projectedProfit < 0 && state.activeCustomer) {
+      state.activeCustomer.satisfaction = Math.min(100, state.activeCustomer.satisfaction + 4);
+      if (!state.activeCustomer.trustBuilt) {
+        state.activeCustomer.label = `${state.activeCustomer.label} (trust-building)`;
+        state.activeCustomer.trustBuilt = true;
+      }
+    }
+  }
+  return { ...result, message: `${result.message} | Adjustment cost -$${cost.toFixed(2)}` };
+}
+
+
+function handleQteKey(key) {
+  const qte = state.ui.qte;
+  if (!qte?.active) return;
+  if (Date.now() > qte.endsAt) {
+    state.ui.qte = null;
+    showToast("QTE failed: time expired.");
+    return;
+  }
+  const expected = qte.sequence[qte.index];
+  if (key === expected) {
+    qte.index += 1;
+    if (qte.index >= qte.sequence.length) {
+      state.activeCalibration.documentationQuality += 12;
+      state.activeCalibration.explanationQuality += 10;
+      state.ui.qte = null;
+      showToast("QTE success: setup confidence improved.");
+    }
+  } else {
+    state.activeCalibration.damageRisk = Math.min(100, state.activeCalibration.damageRisk + 3);
+  }
+}
+
+function runAutoAdjust() {
+  const calibration = state.activeCalibration;
+  if (!calibration) return { message: "No active setup." };
+  const readiness = getCalibrationReadiness(calibration);
+  const map = { inspect: "inspect", relief: "tune", action: "raise-bridge", "nut-check": "lubricate-nut", intonation: "intonate-back", tune: "tune", stretch: "stretch-strings", "play-test": "play-test", document: "document", clean: "clean-body" };
+  let total = 0;
+  for (const step of readiness.missingSteps) {
+    const actionId = map[step];
+    if (!actionId) continue;
+    const result = applyCalibrationActionWithCost(actionId);
+    if (result?.ok) total += estimateAdjustmentCost(calibrationActions.find((a) => a.id === actionId)) * 1.35;
+  }
+  state.cash -= total;
+  return { message: `Auto-adjust applied required steps. Premium labor -$${total.toFixed(2)}.` };
+}
+
+function pitchSpecialEdition() {
+  const customer = state.activeCustomer;
+  if (!customer) return { message: "No customer to pitch." };
+  if (customer.knowledge < 45) {
+    customer.satisfaction = Math.min(100, customer.satisfaction + 6);
+    customer.responseLog.unshift("They believed the special-edition story and felt excited.");
+    return { message: "Special-edition pitch landed with this beginner customer." };
+  }
+  customer.satisfaction = Math.max(0, customer.satisfaction - 4);
+  customer.responseLog.unshift("They asked for provenance and challenged the special-edition claim.");
+  return { message: "Pitch backfired: informed customer asked for proof." };
+}
+
+
+
+function assignShelf(slot, instrumentId) {
+  const idx = slot === undefined || slot === null || slot === "" ? Number(state.ui.selectedShelfSlot) : Number(slot);
+  const item = state.inventory.find((it) => it.id === instrumentId && it.stock > 0);
+  if (!Number.isInteger(idx) || idx < 0 || idx > 2 || !item) return { message: "Cannot place this instrument on shelf." };
+  state.shelfDisplay[idx] = { id: item.id, name: item.name, bonus: item.qualityTier === "Collector" ? 8 : 4, debuff: item.condition.includes("neglected") ? -7 : -2 };
+  return { message: `${item.name} placed on shelf ${idx + 1}.` };
+}
+
+function clearShelf(slot) {
+  const idx = Number(slot);
+  if (!Number.isInteger(idx) || idx < 0 || idx > 2) return { message: "Invalid shelf slot." };
+  state.shelfDisplay[idx] = null;
+  return { message: `Shelf ${idx + 1} cleared.` };
+}
+
+
+function startKeyboardQte() {
+  const calibration = state.activeCalibration;
+  if (!calibration) return { message: "No active setup." };
+  const keys = ["A", "S", "D", "F", "J", "K", "L"];
+  const sequence = Array.from({ length: 8 }, () => keys[Math.floor(state.rng.next() * keys.length)]);
+  state.ui.qte = { active: true, sequence, index: 0, endsAt: Date.now() + 9000 };
+  return { message: "QTE started: type the key sequence before timer ends." };
+}
+
+function answerRoamer(mode) {
+  if (state.ui.lastRoamerAnswerDay === state.day) return { message: "You already answered a roaming bubble today." };
+  const delta = mode === "honest" ? { rep: 1.2, cash: 0 } : mode === "dishonest" ? { rep: -1.8, cash: 15 } : { rep: 0.4, cash: 6 };
+  state.stats.publicReputation = Math.max(0, Math.min(100, state.stats.publicReputation + delta.rep));
+  state.cash += delta.cash;
+  state.ui.lastRoamerAnswerDay = state.day;
+  return { message: `Roaming customer answer: ${mode}. Reputation ${delta.rep >= 0 ? "+" : ""}${delta.rep.toFixed(1)}${delta.cash ? `, tip +$${delta.cash}` : ""}.` };
+}
+
+function getRunningProfitToday() {
+  const today = state.day;
+  const todayEntries = state.ledger.filter((entry) => entry.day === today && !entry.meta?.accountingOnly);
+  return todayEntries.reduce((sum, entry) => sum + entry.amount, 0);
+}
+
 function finalizeCurrentSale() {
   const customer = state.activeCustomer;
   const sale = state.activeSale;
   const calibration = state.activeCalibration;
   if (!customer || !sale || !calibration) return { message: "No active sale/setup to finish." };
+  const readiness = getCalibrationReadiness(calibration);
+  if (!readiness.ready) {
+    const missing = readiness.missingSteps.length ? `Missing steps: ${readiness.missingSteps.join(", ")}.` : "";
+    const riskNote = readiness.buzzRisk > 55 ? ` Buzz risk is too high (${Math.round(readiness.buzzRisk)}).` : "";
+    return { message: `Adjustment not ready for sale. ${missing}${riskNote}`.trim() };
+  }
   const result = finalizeCalibration(state, customer);
-  const blendedSatisfaction = Math.round(customer.satisfaction * 0.35 + result.satisfaction * 0.65);
+  const fatiguePenalty = getFatiguePenalty();
+  const blendedSatisfaction = Math.max(0, Math.round(customer.satisfaction * 0.35 + result.satisfaction * 0.65 - fatiguePenalty));
   const instrument = getInventoryItem(state, sale.instrumentId);
   const totals = completeSaleTransaction(state, sale, blendedSatisfaction);
-  pushNotification(state, "review", "Review posted", `${sale.customerLabel}: ${blendedSatisfaction}/100 after buying ${sale.instrumentName}.`);
+  const adjustmentCost = sale.adjustmentCost || 0;
+  applyFatigueFromWork(calibration.elapsedMinutes);
+  const haggleNote = sale.haggleMode ? ` (${sale.haggleMode} haggle)` : "";
+  const reviewLine = sale.haggleMode === "give-in"
+    ? `I paid below industry and got below industry product. ${blendedSatisfaction}/100.`
+    : `${sale.customerLabel}: ${blendedSatisfaction}/100 after buying ${sale.instrumentName}${haggleNote}.`;
+  pushNotification(state, "review", "Review posted", reviewLine);
   createWarrantyRecord(state, sale, totals, result, calibration);
   applyServiceOutcome(state, {
     satisfaction: blendedSatisfaction,
@@ -199,15 +370,20 @@ function finalizeCurrentSale() {
   if (defect) state.pendingDefects.push(defect);
   state.player.skill.guitarSetup = Math.min(100, state.player.skill.guitarSetup + 1.2);
   state.player.skill.sales = Math.min(100, state.player.skill.sales + 0.8);
+  state.dayGoals.customersServed = (state.dayGoals.customersServed || 0) + 1;
   state.activeCustomer = null;
   state.activeSale = null;
   state.activeCalibration = null;
   state.ui.panel = "shop";
-  return { message: `Paid $${totals.total.toFixed(2)}. Setup ${result.score}/100, satisfaction ${blendedSatisfaction}/100.` };
+  return { message: `Paid $${totals.total.toFixed(2)}. Setup ${result.score}/100, satisfaction ${blendedSatisfaction}/100. Adjustment spend $${adjustmentCost.toFixed(2)}.` };
 }
 
 function endDay() {
+  if ((state.dayGoals?.customersServed || 0) < (state.dayGoals?.customersTarget || 0)) {
+    return { message: `Serve more customers before closing day: ${state.dayGoals.customersServed}/${state.dayGoals.customersTarget}.` };
+  }
   const dayEnded = state.day;
+  const fatigueBeforeReset = state.player.fatigue.level;
   const cashBefore = state.cash;
   const ledgerCountBefore = state.ledger.length;
   const events = [];
@@ -223,7 +399,9 @@ function endDay() {
   expireWarranties(state);
   processExpansionDaily(state);
   const accident = maybeTriggerAccident(state);
-  const onlineOrder = maybePostOnlineOrder(state);
+  let onlineOrder = maybePostOnlineOrder(state);
+  const todayPosted = state.onlineOrders.filter((order) => order.day === state.day && order.status === "posted").length;
+  if (todayPosted < 1) onlineOrder = postGuaranteedOnlineOrder(state) || onlineOrder;
   maybeTriggerDailyEvent(state);
   if (arrivals.length) {
     state.ui.toast = `${arrivals.length} supplier order(s) arrived.`;
@@ -237,8 +415,12 @@ function endDay() {
   if (accident) events.push(`${accident.type}: ${accident.itemName} needs inventory repair.`);
   if (onlineOrder) events.push(`New online order posted: ${onlineOrder.quantity} x ${onlineOrder.itemName}.`);
   if (!state.activeCustomer && state.day <= 7) state.activeCustomer = createCustomerForDay(state);
+  state.dayGoals.customersServed = 0;
+  state.dayGoals.customersTarget = 2 + Math.floor(state.rng.next() * 3);
+  state.player.fatigue.actionsToday = 0;
+  state.player.fatigue.level = Math.max(0, Math.round(fatigueBeforeReset * 0.35));
   state.dayReport = buildDayReport(state, dayEnded, cashBefore, ledgerCountBefore, events);
-  saveGame(state);
+  void saveGame(state);
   scheduleDayReportUnlock();
   return { message: `Day ${state.day} begins. ${state.milestoneText}` };
 }
@@ -301,7 +483,7 @@ function render() {
 }
 
 function renderModal() {
-  modalRoot.innerHTML = renderDayReport(state.dayReport);
+  modalRoot.innerHTML = `${renderDayReport(state.dayReport)}${renderQteModal(state)}`;
   if (state.dayReport) {
     const closeButton = document.querySelector("#closeDayReport");
     const remaining = Math.max(0, Math.ceil((state.dayReport.unlockAt - Date.now()) / 1000));
@@ -320,6 +502,9 @@ function renderHud() {
     <div><strong>${Math.round(state.stats.publicReputation)}</strong><span>public rep</span></div>
     <div><strong>${Math.round(state.stats.industryHonor)}</strong><span>industry honor</span></div>
     <div><strong>${Math.round(state.stats.creditScore)}</strong><span>credit</span></div>
+    <div><strong>${Math.round(state.player.fatigue.level)}</strong><span>fatigue</span></div>
+    <div><strong>$${getRunningProfitToday().toFixed(2)}</strong><span>profit today</span></div>
+    <div><strong>${state.dayGoals.customersServed}/${state.dayGoals.customersTarget}</strong><span>customers served</span></div>
   `;
 }
 
@@ -336,7 +521,45 @@ function renderPanel() {
   else if (panel === "coffee") sidePanel.innerHTML = renderCoffeePanel(state);
   else if (panel === "map") sidePanel.innerHTML = renderMapPanel(state);
   else if (panel === "outside-job") sidePanel.innerHTML = renderOutsideJobPanel(state);
-  else sidePanel.innerHTML = renderWelcomePanel();
+  else sidePanel.innerHTML = state.player.created ? renderWelcomePanel() : renderCharacterCreator();
+}
+
+
+function createCharacter(button) {
+  const key = button.dataset.skill;
+  if (!key) {
+    state.player.created = true;
+    state.ui.panel = "welcome";
+    return { message: "Character created. Open shop." };
+  }
+  if (state.player.skillPoints <= 0) return { message: "No skill points left." };
+  if (!(key in state.player.skill)) return { message: "Unknown skill." };
+  state.player.skill[key] += 2;
+  state.player.skillPoints -= 1;
+  return { message: `${key} increased.` };
+}
+
+function resolveHaggle(mode) {
+  if (!state.activeSale) return { message: "No active sale to haggle." };
+  state.activeSale.haggleMode = mode;
+  if (mode === "give-in") state.activeSale.servicePrice *= 0.75;
+  if (mode === "counter") state.activeSale.servicePrice *= 0.9;
+  return { message: `Haggle set: ${mode}.` };
+}
+
+function renderCharacterCreator() {
+  const trees = ["sales", "repair", "fame", "insight", "economy", "honesty"];
+  return `
+    <section class="panel-section">
+      <h2>Create Character</h2>
+      <p>Distribute skill points into your skill trees before day one.</p>
+      <p class="pill">Points left: ${state.player.skillPoints}</p>
+      <div class="action-grid">
+        ${trees.map((tree) => `<button data-action="create-character" data-skill="${tree}">${tree}: ${Math.round(state.player.skill[tree] || 0)} (+2)</button>`).join("")}
+      </div>
+      <button class="primary" data-action="create-character">Start game</button>
+    </section>
+  `;
 }
 
 function renderWelcomePanel() {
@@ -350,7 +573,39 @@ function renderWelcomePanel() {
         <button data-action="tab" data-id="calibration">Open workbench</button>
         <button data-action="tab" data-id="ledger">Review ledger</button>
       </div>
+      <h3>Roaming Customer Bubble</h3>
+      <p class="quote">A browsing customer asks: "Is this model really special edition?"</p>
+      <div class="button-row">
+        <button data-action="answer-roamer" data-mode="honest">Answer honest</button>
+        <button data-action="answer-roamer" data-mode="neutral">Answer neutral</button>
+        <button data-action="answer-roamer" data-mode="dishonest" class="danger-button">Answer dishonest</button>
+      </div>
+      <h3>Simplified Store View (2D zones)</h3>
+      <div class="store-zones">
+        <div class="store-zone"><strong>Front Counter</strong><span>Customer intake and sales talk</span></div>
+        <div class="store-zone"><strong>Shelves</strong><span>Guitars / Keys / Drums display</span></div>
+        <div class="store-zone"><strong>Adjustment Bench</strong><span>Setup, repair, QTE work</span></div>
+        <div class="store-zone"><strong>Back Area</strong><span>Storage, packing, receiving</span></div>
+      </div>
     </section>
+  `;
+}
+
+
+function renderQteModal(state) {
+  const qte = state.ui.qte;
+  if (!qte?.active) return "";
+  const remaining = Math.max(0, ((qte.endsAt - Date.now()) / 1000).toFixed(1));
+  return `
+    <div class="fullscreen-qte">
+      <section class="qte-card">
+        <h2>Full-Screen Keyboard QTE</h2>
+        <p>Press the random key sequence before time runs out.</p>
+        <div class="qte-target">${qte.sequence.map((k, i) => i < qte.index ? "✓" : k).join(" ")}</div>
+        <p class="muted">Next key: <strong>${qte.sequence[qte.index] || "Done"}</strong> | Time left: ${remaining}s</p>
+        <p class="quote">Wrong keys increase setup risk. Correct sequence boosts documentation and explanation quality.</p>
+      </section>
+    </div>
   `;
 }
 
@@ -365,5 +620,12 @@ function frame() {
   requestAnimationFrame(frame);
 }
 
-render();
-requestAnimationFrame(frame);
+async function initializeGame() {
+  const loaded = await loadGame();
+  state = loaded || createInitialState();
+  if (!state.activeCustomer) state.activeCustomer = createCustomerForDay(state);
+  render();
+  requestAnimationFrame(frame);
+}
+
+initializeGame();
