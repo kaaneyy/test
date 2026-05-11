@@ -112,6 +112,7 @@ export function createInitialState(seed = 44107) {
     },
     pendingDefects: [],
     reviews: [],
+    shelfDisplay: [null, null, null],
     incidents: [],
     randomEventsSeen: [],
     unlocked: {

@@ -98,6 +98,10 @@ function handleAction(action, button, id) {
       return pitchSpecialEdition();
     case "answer-roamer":
       return answerRoamer(button.dataset.mode || "neutral");
+    case "assign-shelf":
+      return assignShelf(button.dataset.slot, id);
+    case "clear-shelf":
+      return clearShelf(button.dataset.slot);
     case "qte-choice":
       return resolveFullscreenQte(state, button.dataset.step);
     case "finalize-calibration":
@@ -253,6 +257,22 @@ function pitchSpecialEdition() {
   return { message: "Pitch backfired: informed customer asked for proof." };
 }
 
+
+
+function assignShelf(slot, instrumentId) {
+  const idx = Number(slot);
+  const item = state.inventory.find((it) => it.id === instrumentId && it.stock > 0);
+  if (!Number.isInteger(idx) || idx < 0 || idx > 2 || !item) return { message: "Cannot place this instrument on shelf." };
+  state.shelfDisplay[idx] = { id: item.id, name: item.name, bonus: item.qualityTier === "Collector" ? 8 : 4, debuff: item.condition.includes("neglected") ? -7 : -2 };
+  return { message: `${item.name} placed on shelf ${idx + 1}.` };
+}
+
+function clearShelf(slot) {
+  const idx = Number(slot);
+  if (!Number.isInteger(idx) || idx < 0 || idx > 2) return { message: "Invalid shelf slot." };
+  state.shelfDisplay[idx] = null;
+  return { message: `Shelf ${idx + 1} cleared.` };
+}
 
 function answerRoamer(mode) {
   const delta = mode === "honest" ? { rep: 1.2, cash: 0 } : mode === "dishonest" ? { rep: -1.8, cash: 15 } : { rep: 0.4, cash: 6 };
