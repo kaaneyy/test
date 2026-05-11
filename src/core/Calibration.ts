@@ -452,3 +452,11 @@ export function summarizeMeasurements(calibration) {
   const intonationMax = Math.max(...m.intonationCents.map(Math.abs));
   return `relief ${round(m.reliefMm, 2)} mm, action ${round(m.lowEActionMm, 2)}/${round(m.highEActionMm, 2)} mm, nut ${round(m.nutLowMm, 2)}/${round(m.nutHighMm, 2)} mm, intonation max ${round(intonationMax, 1)} cents, buzz risk ${round(estimateBuzzRisk(calibration), 1)}.`;
 }
+
+
+export function estimateAdjustmentCost(action) {
+  if (!action) return 0;
+  const base = action.shortcut ? 2 : 8;
+  const timeFactor = Math.max(0, action.minutes) * 0.9;
+  return round(base + timeFactor, 2);
+}

@@ -22,6 +22,8 @@ body {
   color: var(--ink);
   background: #e9e1d2;
   min-height: 100dvh;
+  max-width: 1280px;
+  margin: 0 auto;
   overflow: auto;
 }
 
@@ -69,17 +71,19 @@ button.primary {
 
 .app-shell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 470px);
+  grid-template-columns: 1fr;
   gap: 12px;
   width: 100%;
   min-height: 100dvh;
+  max-width: 1280px;
+  margin: 0 auto;
   padding: 12px;
   align-items: start;
 }
 
 .play-area {
   display: grid;
-  grid-template-rows: auto minmax(360px, calc(100vh - 190px)) auto auto;
+  grid-template-rows: auto minmax(420px, 62dvh) auto auto;
   min-width: 0;
   gap: 8px;
   position: static;
@@ -470,6 +474,8 @@ li {
     grid-template-columns: 1fr;
     height: auto;
     min-height: 100dvh;
+  max-width: 1280px;
+  margin: 0 auto;
   }
 
   .play-area {
@@ -508,3 +514,7 @@ li {
 .qte-card{width:min(760px,100%);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;}
 .qte-target{font-size:28px;font-weight:800;letter-spacing:2px;margin:8px 0;}
 .qte-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;}
+
+.store-zones{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:10px;}
+.store-zone{border:1px solid var(--line);background:#f6efe2;border-radius:8px;padding:10px;text-align:center;}
+.store-zone strong{display:block;margin-bottom:4px;}

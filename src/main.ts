@@ -1,6 +1,6 @@
 import { createInitialState, loadGame, resetSave, saveGame } from "./core/GameState.ts";
 import { createCustomerForDay, askQuestion, evaluateRecommendation } from "./core/Customers.ts";
-import { startCalibration, applyCalibrationAction, finalizeCalibration, buildDefectFromCalibration, beginFullscreenQte, resolveFullscreenQte, getCalibrationReadiness } from "./core/Calibration.ts";
+import { startCalibration, applyCalibrationAction, finalizeCalibration, buildDefectFromCalibration, beginFullscreenQte, resolveFullscreenQte, getCalibrationReadiness, calibrationActions, estimateAdjustmentCost } from "./core/Calibration.ts";
 import { completeSaleTransaction, getAccessory, getInventoryItem, calculateSaleTotals, processEndOfDay, takeLoan, payTaxDeposit, buyStarterStock, processPendingInvoices } from "./core/Economy.ts";
 import { applyServiceOutcome, processPendingDefects } from "./core/Reputation.ts";
 import { acceptOutsideJob, completeOutsideJob, toggleJobChecklist, toggleJobShortcut } from "./core/Jobs.ts";
@@ -89,7 +89,7 @@ function handleAction(action, button, id) {
     case "haggle-offer":
       return resolveHaggle(button.dataset.mode || "counter");
     case "calibration-action":
-      return applyCalibrationAction(state.activeCalibration, id, state);
+      return applyCalibrationActionWithCost(id);
     case "start-fullscreen-qte":
       return beginFullscreenQte(state, state.activeCalibration);
     case "qte-choice":
@@ -193,6 +193,27 @@ function startSaleFromButton(button) {
   return { message: `Sale prepared. Payment waits until ${service.label.toLowerCase()} is complete.` };
 }
 
+
+function applyCalibrationActionWithCost(actionId) {
+  const result = applyCalibrationAction(state.activeCalibration, actionId, state);
+  if (!result?.ok) return result;
+  const action = calibrationActions.find((item) => item.id === actionId);
+  const cost = estimateAdjustmentCost(action);
+  state.cash = Math.max(-999999, state.cash - cost);
+  if (state.activeSale) {
+    state.activeSale.adjustmentCost = (state.activeSale.adjustmentCost || 0) + cost;
+    const projectedProfit = (state.activeSale.totals?.profit || 0) - state.activeSale.adjustmentCost;
+    if (projectedProfit < 0) {
+      pushNotification(state, "warning", "Adjustment cost warning", `Adjustments on ${state.activeSale.instrumentName} are now below profit by $${Math.abs(projectedProfit).toFixed(2)}.`);
+    }
+    if (projectedProfit < 0 && state.activeCustomer) {
+      state.activeCustomer.satisfaction = Math.min(100, state.activeCustomer.satisfaction + 4);
+      state.activeCustomer.label = `${state.activeCustomer.label} (trust-building)`;
+    }
+  }
+  return { ...result, message: `${result.message} | Adjustment cost -$${cost.toFixed(2)}` };
+}
+
 function finalizeCurrentSale() {
   const customer = state.activeCustomer;
   const sale = state.activeSale;
@@ -209,6 +230,7 @@ function finalizeCurrentSale() {
   const blendedSatisfaction = Math.max(0, Math.round(customer.satisfaction * 0.35 + result.satisfaction * 0.65 - fatiguePenalty));
   const instrument = getInventoryItem(state, sale.instrumentId);
   const totals = completeSaleTransaction(state, sale, blendedSatisfaction);
+  const adjustmentCost = sale.adjustmentCost || 0;
   applyFatigueFromWork(calibration.elapsedMinutes);
   const haggleNote = sale.haggleMode ? ` (${sale.haggleMode} haggle)` : "";
   const reviewLine = sale.haggleMode === "give-in"
@@ -232,7 +254,7 @@ function finalizeCurrentSale() {
   state.activeSale = null;
   state.activeCalibration = null;
   state.ui.panel = "shop";
-  return { message: `Paid $${totals.total.toFixed(2)}. Setup ${result.score}/100, satisfaction ${blendedSatisfaction}/100.` };
+  return { message: `Paid $${totals.total.toFixed(2)}. Setup ${result.score}/100, satisfaction ${blendedSatisfaction}/100. Adjustment spend $${adjustmentCost.toFixed(2)}.` };
 }
 
 function endDay() {
@@ -420,6 +442,13 @@ function renderWelcomePanel() {
         <button data-action="tab" data-id="dialogue">Go to counter</button>
         <button data-action="tab" data-id="calibration">Open workbench</button>
         <button data-action="tab" data-id="ledger">Review ledger</button>
+      </div>
+      <h3>Simplified Store View (2D zones)</h3>
+      <div class="store-zones">
+        <div class="store-zone"><strong>Front Counter</strong><span>Customer intake and sales talk</span></div>
+        <div class="store-zone"><strong>Shelves</strong><span>Guitars / Keys / Drums display</span></div>
+        <div class="store-zone"><strong>Adjustment Bench</strong><span>Setup, repair, QTE work</span></div>
+        <div class="store-zone"><strong>Back Area</strong><span>Storage, packing, receiving</span></div>
       </div>
     </section>
   `;
