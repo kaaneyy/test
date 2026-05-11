@@ -208,7 +208,10 @@ function applyCalibrationActionWithCost(actionId) {
     }
     if (projectedProfit < 0 && state.activeCustomer) {
       state.activeCustomer.satisfaction = Math.min(100, state.activeCustomer.satisfaction + 4);
-      state.activeCustomer.label = `${state.activeCustomer.label} (trust-building)`;
+      if (!state.activeCustomer.trustBuilt) {
+        state.activeCustomer.label = `${state.activeCustomer.label} (trust-building)`;
+        state.activeCustomer.trustBuilt = true;
+      }
     }
   }
   return { ...result, message: `${result.message} | Adjustment cost -$${cost.toFixed(2)}` };

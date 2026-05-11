@@ -94,7 +94,7 @@ button.primary {
 
 .hud {
   display: grid;
-  grid-template-columns: 1.5fr repeat(4, minmax(90px, .55fr));
+  grid-template-columns: 1.35fr repeat(5, minmax(88px, .52fr));
   gap: 8px;
 }
 
@@ -526,15 +526,6 @@ li {
 
   .tabs,
   .bottom-bar {
-    display: flex;
-    flex-wrap: wrap;
-    width: auto;
-  }
-
-  .tabs,
-  .bottom-bar {
-  .bottom-bar {
-    position: static;
     display: flex;
     flex-wrap: wrap;
     width: auto;
