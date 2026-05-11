@@ -112,8 +112,10 @@ export function createInitialState(seed = 44107) {
     },
     pendingDefects: [],
     reviews: [],
+    shelfDisplay: [null, null, null],
     incidents: [],
     randomEventsSeen: [],
+    dayGoals: { customersTarget: 2, customersServed: 0, ordersFulfilled: 0, ordersTarget: 1 },
     unlocked: {
       bank: false,
       employees: false,
@@ -128,6 +130,8 @@ export function createInitialState(seed = 44107) {
       productMarkupMood: "fair",
     },
     player: {
+      created: false,
+      skillPoints: 10,
       x: 215,
       y: 320,
       speed: 165,
@@ -137,6 +141,15 @@ export function createInitialState(seed = 44107) {
         guitarSetup: 48,
         documentation: 36,
         accounting: 32,
+        repair: 30,
+        fame: 30,
+        insight: 30,
+        economy: 30,
+        honesty: 30,
+      },
+      fatigue: {
+        actionsToday: 0,
+        level: 0,
       },
     },
     ui: {
@@ -146,6 +159,8 @@ export function createInitialState(seed = 44107) {
       selectedAccessoryIds: [],
       selectedServiceId: "basic-setup",
       selectedOutsideJobId: null,
+      qte: null,
+      selectedShelfSlot: null,
     },
   };
 }
@@ -174,15 +189,27 @@ export function reviveState(rawState) {
   return state;
 }
 
-export function saveGame(state) {
+export async function saveGame(state) {
   if (typeof localStorage === "undefined") return false;
   const copy = structuredClone(state);
   delete copy.rng;
   localStorage.setItem(SAVE_KEY, JSON.stringify(copy));
+  if (typeof fetch !== "undefined") {
+    try {
+      await fetch("/api/save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(copy) });
+    } catch {}
+  }
   return true;
 }
 
-export function loadGame() {
+export async function loadGame() {
+  if (typeof fetch !== "undefined") {
+    try {
+      const response = await fetch("/api/load");
+      const payload = await response.json();
+      if (payload?.state) return reviveState(payload.state);
+    } catch {}
+  }
   if (typeof localStorage === "undefined") return null;
   const saved = localStorage.getItem(SAVE_KEY);
   if (!saved) return null;
@@ -194,9 +221,14 @@ export function loadGame() {
   }
 }
 
-export function resetSave() {
+export async function resetSave() {
   if (typeof localStorage === "undefined") return;
   localStorage.removeItem(SAVE_KEY);
+  if (typeof fetch !== "undefined") {
+    try {
+      await fetch("/api/reset", { method: "POST" });
+    } catch {}
+  }
 }
 
 export function getDayMilestone(day) {
