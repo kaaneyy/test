@@ -8,9 +8,7 @@
   </head>
   <body>
     <main class="app-shell">
-      <section class="play-area">
-        <header id="hud" class="hud"></header>
-        <canvas id="gameCanvas" aria-label="FineTune Empire shop floor"></canvas>
+      <aside class="left-rail" aria-label="Game controls">
         <nav class="tabs" aria-label="Game screens">
           <button data-action="tab" data-id="shop" class="active">Shop</button>
           <button data-action="tab" data-id="dialogue">Counter</button>
@@ -30,6 +28,10 @@
           <button data-action="load">Load</button>
           <button data-action="reset" class="danger-button">New Game</button>
         </div>
+      </aside>
+      <section class="play-area">
+        <header id="hud" class="hud"></header>
+        <canvas id="gameCanvas" aria-label="FineTune Empire shop floor"></canvas>
       </section>
       <aside id="sidePanel" class="side-panel"></aside>
     </main>

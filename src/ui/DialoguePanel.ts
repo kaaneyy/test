@@ -46,6 +46,16 @@ export function renderDialoguePanel(state) {
       </div>
       ${top ? `
         <div class="sale-card">
+          <h3>Haggle Handling</h3>
+          <p>Some NPCs negotiate hard. Counter, give in, or hold line before finalizing setup.</p>
+          <div class="button-row">
+            <button data-action="haggle-offer" data-mode="counter">Counter offer</button>
+            <button data-action="haggle-offer" data-mode="give-in">Give in</button>
+            <button data-action="haggle-offer" data-mode="hold">Hold line</button>
+          </div>
+        </div>
+      
+        <div class="sale-card">
           <h3>Quick Sale Bundle</h3>
           <p>${top.name} + ${accessories.map((item) => item.name).join(", ")} + ${service.label}</p>
           <button data-action="start-sale" data-instrument="${top.id}" data-accessories="${accessories.map((item) => item.id).join(",")}" data-service="${service.id}">Recommend this bundle</button>
