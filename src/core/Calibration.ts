@@ -407,11 +407,13 @@ export function getCalibrationReadiness(calibration) {
   const required = service.requiredSteps || [];
   const missing = required.filter((step) => !(calibration.steps[step] > 0 || (step === "nut-check" && calibration.steps["nut-check"] > 0)));
   const buzzRisk = estimateBuzzRisk(calibration);
+  const shortcutTaken = (calibration.skippedSteps?.length || 0) > 0;
   return {
     requiredSteps: required,
     missingSteps: missing,
     buzzRisk,
-    ready: missing.length === 0 && buzzRisk <= 55,
+    shortcutTaken,
+    ready: shortcutTaken || (missing.length === 0 && buzzRisk <= 55),
   };
 }
 

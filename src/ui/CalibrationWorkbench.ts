@@ -25,11 +25,17 @@ export function renderCalibrationWorkbench(state) {
     return true;
   });
   const quickEventPrompt = instrumentGroup === "piano" ? "Strike the matching key timing" : instrumentGroup === "bass" ? "Lock in groove timing" : "Nail the string bend timing";
+  const sale = state.activeSale;
+  const adjustmentCost = sale?.adjustmentCost || 0;
+  const baseProfit = sale?.totals?.profit || 0;
+  const projectedProfit = baseProfit - adjustmentCost;
   return `
     <section class="panel-section calibration-panel">
       <h2>${calibration.instrumentName}</h2>
       <p class="muted">${service.label} | ${profile.label} | Preference: ${modifier.label}</p>
       <div class="score-strip">
+        <span>Sale $<strong>${sale?.totals?.total?.toFixed?.(2) || "0.00"}</strong></span>
+        <span>Projected profit <strong>$${projectedProfit.toFixed(2)}</strong></span>
         <span>Readiness <strong>${readiness.ready ? "Ready" : "Not ready"}</strong></span>
         <span>Preview setup score <strong>${preview.score}</strong></span>
         <span>Customer impact <strong>${preview.satisfaction}</strong></span>
@@ -48,7 +54,8 @@ export function renderCalibrationWorkbench(state) {
         ${metric("Documentation", `${Math.round(calibration.documentationQuality)}/100`)}
       </div>
       <p class="quote">${summarizeMeasurements(calibration)}</p>
-      ${readiness.missingSteps.length ? `<p class="quote">Missing before sale: ${readiness.missingSteps.join(", ")}.</p>` : ""}
+      ${readiness.shortcutTaken ? `<p class="quote">Shortcut selected: no further adjustments required before finalize, but quality/reputation risk applies.</p>` : ""}
+      ${(!readiness.shortcutTaken && readiness.missingSteps.length) ? `<p class="quote">Missing before sale: ${readiness.missingSteps.join(", ")}.</p>` : ""}
       <h3>Tools and Actions</h3>
       <p class="muted">Educational path: inspect → relief → action → intonation → play test → document. Following this order improves consistency and score.</p>
       <div class="button-row"><button data-action="start-fullscreen-qte">Start full-screen setup QTE</button><button data-action="auto-adjust">Auto complete required steps (premium)</button></div>

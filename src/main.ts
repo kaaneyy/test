@@ -96,6 +96,8 @@ function handleAction(action, button, id) {
       return runAutoAdjust();
     case "pitch-special":
       return pitchSpecialEdition();
+    case "answer-roamer":
+      return answerRoamer(button.dataset.mode || "neutral");
     case "qte-choice":
       return resolveFullscreenQte(state, button.dataset.step);
     case "finalize-calibration":
@@ -202,7 +204,7 @@ function applyCalibrationActionWithCost(actionId) {
   const result = applyCalibrationAction(state.activeCalibration, actionId, state);
   if (!result?.ok) return result;
   const action = calibrationActions.find((item) => item.id === actionId);
-  const cost = estimateAdjustmentCost(action);
+  const cost = action?.shortcut ? 0 : estimateAdjustmentCost(action);
   state.cash = Math.max(-999999, state.cash - cost);
   if (state.activeSale) {
     state.activeSale.adjustmentCost = (state.activeSale.adjustmentCost || 0) + cost;
@@ -249,6 +251,14 @@ function pitchSpecialEdition() {
   customer.satisfaction = Math.max(0, customer.satisfaction - 4);
   customer.responseLog.unshift("They asked for provenance and challenged the special-edition claim.");
   return { message: "Pitch backfired: informed customer asked for proof." };
+}
+
+
+function answerRoamer(mode) {
+  const delta = mode === "honest" ? { rep: 1.2, cash: 0 } : mode === "dishonest" ? { rep: -1.8, cash: 15 } : { rep: 0.4, cash: 6 };
+  state.stats.publicReputation = Math.max(0, Math.min(100, state.stats.publicReputation + delta.rep));
+  state.cash += delta.cash;
+  return { message: `Roaming customer answer: ${mode}. Reputation ${delta.rep >= 0 ? "+" : ""}${delta.rep.toFixed(1)}${delta.cash ? `, tip +$${delta.cash}` : ""}.` };
 }
 
 function getRunningProfitToday() {
@@ -486,6 +496,13 @@ function renderWelcomePanel() {
         <button data-action="tab" data-id="dialogue">Go to counter</button>
         <button data-action="tab" data-id="calibration">Open workbench</button>
         <button data-action="tab" data-id="ledger">Review ledger</button>
+      </div>
+      <h3>Roaming Customer Bubble</h3>
+      <p class="quote">A browsing customer asks: "Is this model really special edition?"</p>
+      <div class="button-row">
+        <button data-action="answer-roamer" data-mode="honest">Answer honest</button>
+        <button data-action="answer-roamer" data-mode="neutral">Answer neutral</button>
+        <button data-action="answer-roamer" data-mode="dishonest" class="danger-button">Answer dishonest</button>
       </div>
       <h3>Simplified Store View (2D zones)</h3>
       <div class="store-zones">
