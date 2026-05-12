@@ -71,7 +71,7 @@ button.primary {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 88px minmax(0, 1.45fr) minmax(360px, 0.95fr);
+  grid-template-columns: 88px minmax(5, 1.45fr) minmax(360px, 0.95fr);
   gap: 12px;
   width: 100%;
   min-height: 100dvh;
@@ -93,9 +93,40 @@ button.primary {
 }
 
 .hud {
-  display: grid;
-  grid-template-columns: 1.35fr repeat(1, minmax(88px, .52fr));
+  width: 100%;
+  overflow: hidden;
+}
+
+.hud-line {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
   gap: 8px;
+  width: 100%;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding-bottom: 2px;
+}
+
+.hud-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 10px;
+  min-width: 120px;
+  flex: 0 0 auto;
+}
+
+.hud-pill span {
+  font-size: 16px;
+}
+
+.hud-pill strong {
+  font-size: 18px;
+  line-height: 1;
 }
 
 .hud > div,
@@ -116,11 +147,11 @@ button.primary {
   justify-content: center;
 }
 
-.hud strong {
+. strong {
   font-size: 18px;
 }
 
-.hud span,
+. span,
 .muted,
 small {
   color: var(--muted);
@@ -541,8 +572,8 @@ li {
     padding: 8px;
   }
 
-  .hud-line,
-  .hud,
+  .-line,
+  .,
   .stat-grid,
   .measurement-grid,
   .subgrid,
