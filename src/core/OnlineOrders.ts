@@ -3,7 +3,7 @@ import { pushNotification } from "./Notifications.ts";
 import { clamp, round } from "./Rng.ts";
 
 export function maybePostOnlineOrder(state) {
-  const chance = clamp(0.08 + state.stats.publicReputation / 900 + state.stats.brandImage / 1200, 0.05, 0.24);
+  const chance = clamp(0.16 + state.stats.publicReputation / 850 + state.stats.brandImage / 1100, 0.08, 0.38);
   if (!state.rng.chance(chance)) return null;
   const candidates = state.inventory.filter((item) => item.stock > 0 && item.sellPrice < 1200);
   if (!candidates.length) return null;
@@ -31,6 +31,7 @@ export function fulfillOnlineOrder(state, orderId) {
   if (!item || item.stock < order.quantity) return { ok: false, message: "Not enough stock to fulfill that online order." };
   item.stock -= order.quantity;
   order.status = "fulfilled";
+  if (state.dayGoals) state.dayGoals.ordersFulfilled = (state.dayGoals.ordersFulfilled || 0) + 1;
   addLedger(state, "online-sales", `Online order fulfilled: ${order.itemName}`, order.gross);
   state.stats.publicReputation = clamp(state.stats.publicReputation + 0.8, 0, 100);
   pushNotification(state, "online-order", "Online order fulfilled", `${order.itemName} shipped from stock.`);
@@ -48,4 +49,24 @@ export function processOnlineOrderDeadlines(state) {
     }
   }
   return expired;
+}
+
+
+export function postGuaranteedOnlineOrder(state) {
+  const candidates = state.inventory.filter((item) => item.stock > 0 && item.sellPrice < 1200);
+  if (!candidates.length) return null;
+  const item = state.rng.pick(candidates);
+  const order = {
+    id: `online-guaranteed-${state.day}-${state.onlineOrders.length}`,
+    day: state.day,
+    itemId: item.id,
+    itemName: item.name,
+    quantity: 1,
+    gross: round(item.sellPrice * 1.03, 2),
+    dueDay: state.day + 2,
+    status: "posted",
+  };
+  state.onlineOrders.unshift(order);
+  pushNotification(state, "online-order", "Guaranteed online order", `Daily baseline order posted: ${item.name}.`);
+  return order;
 }
