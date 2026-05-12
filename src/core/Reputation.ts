@@ -75,6 +75,19 @@ export function processPendingDefects(state) {
         legalRiskAdd: 3 + 12 * defect.severity * dishonestBoost,
         warrantyLiabilityAdd: defect.value * 0.08 * defect.severity,
       });
+      if ((defect.customerKnowledge || 0) < 45) {
+        state.onlineOrders.unshift({
+          id: `repair-${defect.id}-${state.day}`,
+          day: state.day,
+          itemId: null,
+          itemName: defect.instrumentName,
+          quantity: 1,
+          gross: round(defect.value * 0.22, 2),
+          dueDay: state.day + 2,
+          status: "posted",
+          repair: true,
+        });
+      }
       state.reviews.unshift({
         day: state.day,
         customerLabel: defect.customerLabel,
