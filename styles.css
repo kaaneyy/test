@@ -94,7 +94,7 @@ button.primary {
 
 .hud {
   display: grid;
-  grid-template-columns: 1.35fr repeat(5, minmax(88px, .52fr));
+  grid-template-columns: 1.35fr repeat(1, minmax(88px, .52fr));
   gap: 8px;
 }
 
