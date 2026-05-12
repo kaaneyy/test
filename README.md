@@ -31,7 +31,7 @@ Tested with the bundled Node runtime in this workspace. A normal modern Node ins
 1. Open a terminal in this folder:
 
 ```sh
-cd C:\Users\bidse\Documents\Codex\2026-05-11\you-are-an-expert-game-developer
+cd /path/to/fine-tune-empire
 ```
 
 2. Start the local server:
