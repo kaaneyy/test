@@ -568,7 +568,7 @@ li {
 
 .needed-action{outline:2px solid #2f9a52;background:#e8faee;}
 
-.hud-line{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:8px;width:100%;}
-.hud-pill{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--line);background:var(--panel);border-radius:10px;min-width:0;}
+.hud-line{display:flex;gap:8px;width:100%;overflow-x:auto;padding-bottom:2px;}
+.hud-pill{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--line);background:var(--panel);border-radius:10px;min-width:120px;flex:0 0 auto;}
 .hud-pill span{font-size:16px;}
 .hud-pill strong{font-size:18px;line-height:1;}
