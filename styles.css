@@ -71,7 +71,7 @@ button.primary {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 88px minmax(5, 1.45fr) minmax(360px, 0.95fr);
+  grid-template-columns: 88px minmax(0, 1.45fr) minmax(360px, 0.95fr);
   gap: 12px;
   width: 100%;
   min-height: 100dvh;
@@ -116,11 +116,11 @@ button.primary {
   justify-content: center;
 }
 
-. strong {
+.hud strong {
   font-size: 18px;
 }
 
-. span,
+.hud span,
 .muted,
 small {
   color: var(--muted);
@@ -541,8 +541,7 @@ li {
     padding: 8px;
   }
 
-  .-line,
-  .,
+  .hud,
   .stat-grid,
   .measurement-grid,
   .subgrid,
@@ -572,4 +571,3 @@ li {
 .hud-pill{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--line);background:var(--panel);border-radius:10px;min-width:120px;flex:0 0 auto;}
 .hud-pill span{font-size:16px;}
 .hud-pill strong{font-size:18px;line-height:1;}
-.hud-pill small{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
