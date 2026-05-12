@@ -506,16 +506,16 @@ function renderModal() {
 function renderHud() {
   const cards = [
     { icon: "🗓️", value: `Day ${state.day}`, label: state.milestoneText },
-    { icon: "💵", value: `$${state.cash.toFixed(2)}`, label: "Cash" },
-    { icon: "⭐", value: `${Math.round(state.stats.publicReputation)}`, label: "Public reputation" },
-    { icon: "🏛️", value: `${Math.round(state.stats.industryHonor)}`, label: "Industry honor" },
-    { icon: "🏦", value: `${Math.round(state.stats.creditScore)}`, label: "Credit score" },
-    { icon: "😮‍💨", value: `${Math.round(state.player.fatigue.level)}`, label: "Fatigue" },
-    { icon: "📈", value: `$${getRunningProfitToday().toFixed(2)}`, label: "Profit today" },
-    { icon: "🧑‍🤝‍🧑", value: `${state.dayGoals.customersServed}/${state.dayGoals.customersTarget}`, label: "Customers served" },
-    { icon: "📦", value: `${state.dayGoals.ordersFulfilled ?? 0}/${state.dayGoals.ordersTarget ?? 1}`, label: "Orders fulfilled" },
+    { icon: "💵", value: `$${state.cash.toFixed(2)}`, label: "cash" },
+    { icon: "⭐", value: `${Math.round(state.stats.publicReputation)}`, label: "public rep" },
+    { icon: "🏛️", value: `${Math.round(state.stats.industryHonor)}`, label: "industry honor" },
+    { icon: "🏦", value: `${Math.round(state.stats.creditScore)}`, label: "credit" },
+    { icon: "😮‍💨", value: `${Math.round(state.player.fatigue.level)}`, label: "fatigue" },
+    { icon: "📈", value: `$${getRunningProfitToday().toFixed(2)}`, label: "profit today" },
+    { icon: "🧑‍🤝‍🧑", value: `${state.dayGoals.customersServed}/${state.dayGoals.customersTarget}`, label: "customers served" },
+    { icon: "📦", value: `${state.dayGoals.ordersFulfilled ?? 0}/${state.dayGoals.ordersTarget ?? 1}`, label: "orders fulfilled" },
   ];
-  hud.innerHTML = `<div class="hud-line">${cards.map((c)=>`<div class="hud-pill" title="${c.label}"><span>${c.icon}</span><strong>${c.value}</strong></div>`).join("")}</div>`;
+  hud.innerHTML = `<div class="hud-line">${cards.map((c)=>`<div class="hud-pill"><span>${c.icon}</span><strong>${c.value}</strong><small>${c.label}</small></div>`).join("")}</div>`;
 }
 
 function renderPanel() {
