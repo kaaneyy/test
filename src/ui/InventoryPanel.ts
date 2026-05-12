@@ -6,12 +6,17 @@ export function renderInventoryPanel(state) {
   return `
     <section class="panel-section">
       <h2>Inventory and Suppliers</h2>
+      ${state.ui.selectedShelfSlot !== null && state.ui.selectedShelfSlot !== undefined ? `<p class="quote">Placing to shelf ${Number(state.ui.selectedShelfSlot)+1}. Choose any in-stock instrument.</p>` : ""}
       <div class="stat-grid">
         <div class="stat"><span>Instruments</span><strong>${summary.instrumentCount}</strong></div>
         <div class="stat"><span>Accessories</span><strong>${summary.accessoryCount}</strong></div>
         <div class="stat"><span>Inventory Value</span><strong>$${Math.round(summary.inventoryValue)}</strong></div>
         <div class="stat"><span>Supplier Trust</span><strong>${Math.round(state.stats.supplierTrust)}</strong></div>
       </div>
+      <h3>Showcase Shelves (limit 3)</h3>
+      <ul class="fact-list">
+        ${(state.shelfDisplay || [null,null,null]).map((slot, idx) => `<li>Shelf ${idx+1}: ${slot ? `${slot.name} (bonus +${slot.bonus}, debuff ${slot.debuff}) <button data-action="clear-shelf" data-slot="${idx}">Clear</button>` : `Empty`}</li>`).join("")}
+      </ul>
       <h3>Supplier Orders</h3>
       <ul class="fact-list">
         ${state.supplierOrders.map((order) => `<li>${order.quantity} x ${order.itemName} from ${order.supplier}, ETA day ${order.arrivalDay}, freight $${order.freight}.</li>`).join("") || "<li>No supplier orders pending.</li>"}
@@ -41,7 +46,7 @@ export function renderInventoryPanel(state) {
               <p>${item.category} | ${item.condition} | ${item.qualityTier}</p>
               <p class="muted">Cost $${item.cost}, sell $${item.sellPrice}, lead ${item.leadTimeDays} days, warranty risk ${Math.round(item.warrantyRisk * 100)}%</p>
               <p class="muted">Supplier: ${item.supplier}. Target: ${item.targetCustomerTags.join(", ")}</p>
-              <button data-action="order-stock" data-id="${item.id}">Order 1</button>
+              <div class="button-row"><button data-action="order-stock" data-id="${item.id}">Order 1</button><button data-action="assign-shelf" data-id="${item.id}" data-slot="${state.ui.selectedShelfSlot ?? 0}">Shelf 1</button><button data-action="assign-shelf" data-id="${item.id}" data-slot="${state.ui.selectedShelfSlot ?? 1}">Shelf 2</button><button data-action="assign-shelf" data-id="${item.id}" data-slot="${state.ui.selectedShelfSlot ?? 2}">Shelf 3</button></div>
             </article>
           `).join("")}
         </div>
