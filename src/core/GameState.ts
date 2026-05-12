@@ -179,6 +179,7 @@ export function reviveState(rawState) {
   state.unlocked = { ...fresh.unlocked, ...(state.unlocked || {}) };
   state.stats = { ...fresh.stats, ...(state.stats || {}) };
   state.ui = { ...fresh.ui, ...(state.ui || {}) };
+  state.dayGoals = { ...fresh.dayGoals, ...(state.dayGoals || {}) };
   if (state.ui.toast?.startsWith("Simulation disclaimer:")) state.ui.toast = "";
   if (!("activePianoInstall" in state)) state.activePianoInstall = null;
   if (!("dayReport" in state)) state.dayReport = null;

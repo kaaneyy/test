@@ -382,8 +382,10 @@ function endDay() {
   if ((state.dayGoals?.customersServed || 0) < (state.dayGoals?.customersTarget || 0)) {
     return { message: `Serve more customers before closing day: ${state.dayGoals.customersServed}/${state.dayGoals.customersTarget}.` };
   }
-  if ((state.dayGoals?.ordersFulfilled || 0) < (state.dayGoals?.ordersTarget || 1)) {
-    return { message: `Fulfill at least ${state.dayGoals.ordersTarget} online order today before ending day.` };
+  const ordersTarget = state.dayGoals?.ordersTarget ?? 1;
+  const ordersFulfilled = state.dayGoals?.ordersFulfilled ?? 0;
+  if (ordersFulfilled < ordersTarget) {
+    return { message: `Fulfill at least ${ordersTarget} online order today before ending day.` };
   }
   const dayEnded = state.day;
   const fatigueBeforeReset = state.player.fatigue.level;
@@ -422,6 +424,7 @@ function endDay() {
   state.dayGoals.customersTarget = 2 + Math.floor(state.rng.next() * 3);
   state.dayGoals.ordersFulfilled = 0;
   state.dayGoals.ordersTarget = 1;
+  postGuaranteedOnlineOrder(state);
   state.player.fatigue.actionsToday = 0;
   state.player.fatigue.level = Math.max(0, Math.round(fatigueBeforeReset * 0.35));
   state.dayReport = buildDayReport(state, dayEnded, cashBefore, ledgerCountBefore, events);
@@ -501,17 +504,18 @@ function renderModal() {
 }
 
 function renderHud() {
-  hud.innerHTML = `
-    <div><strong>Day ${state.day}</strong><span>${state.milestoneText}</span></div>
-    <div><strong>$${state.cash.toFixed(2)}</strong><span>cash</span></div>
-    <div><strong>${Math.round(state.stats.publicReputation)}</strong><span>public rep</span></div>
-    <div><strong>${Math.round(state.stats.industryHonor)}</strong><span>industry honor</span></div>
-    <div><strong>${Math.round(state.stats.creditScore)}</strong><span>credit</span></div>
-    <div><strong>${Math.round(state.player.fatigue.level)}</strong><span>fatigue</span></div>
-    <div><strong>$${getRunningProfitToday().toFixed(2)}</strong><span>profit today</span></div>
-    <div><strong>${state.dayGoals.customersServed}/${state.dayGoals.customersTarget}</strong><span>customers served</span></div>
-    <div><strong>${state.dayGoals.ordersFulfilled}/${state.dayGoals.ordersTarget}</strong><span>orders fulfilled</span></div>
-  `;
+  const cards = [
+    { icon: "🗓️", value: `Day ${state.day}`, label: state.milestoneText },
+    { icon: "💵", value: `$${state.cash.toFixed(2)}`, label: "cash" },
+    { icon: "⭐", value: `${Math.round(state.stats.publicReputation)}`, label: "public rep" },
+    { icon: "🏛️", value: `${Math.round(state.stats.industryHonor)}`, label: "industry honor" },
+    { icon: "🏦", value: `${Math.round(state.stats.creditScore)}`, label: "credit" },
+    { icon: "😮‍💨", value: `${Math.round(state.player.fatigue.level)}`, label: "fatigue" },
+    { icon: "📈", value: `$${getRunningProfitToday().toFixed(2)}`, label: "profit today" },
+    { icon: "🧑‍🤝‍🧑", value: `${state.dayGoals.customersServed}/${state.dayGoals.customersTarget}`, label: "customers served" },
+    { icon: "📦", value: `${state.dayGoals.ordersFulfilled ?? 0}/${state.dayGoals.ordersTarget ?? 1}`, label: "orders fulfilled" },
+  ];
+  hud.innerHTML = `<div class="hud-line">${cards.map((c)=>`<div class="hud-pill"><span>${c.icon}</span><strong>${c.value}</strong><small>${c.label}</small></div>`).join("")}</div>`;
 }
 
 function renderPanel() {
@@ -629,7 +633,10 @@ function frame() {
 async function initializeGame() {
   const loaded = await loadGame();
   state = loaded || createInitialState();
+  state.dayGoals = { customersTarget: 2, customersServed: 0, ordersFulfilled: 0, ordersTarget: 1, ...(state.dayGoals || {}) };
   if (!state.activeCustomer) state.activeCustomer = createCustomerForDay(state);
+  const todayPosted = state.onlineOrders.filter((order) => order.day === state.day && order.status === "posted").length;
+  if (todayPosted < 1) postGuaranteedOnlineOrder(state);
   render();
   requestAnimationFrame(frame);
 }
