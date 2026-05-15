@@ -138,7 +138,7 @@ function handleAction(action, button, id) {
     case "order-stock":
       return placeSupplierOrder(state, id, 1);
     case "fulfill-online-order":
-      return fulfillOnlineOrder(state, id);
+      return fulfillOnlineOrderAndBackfill(id);
     case "repair-damaged":
       return repairDamagedInventory(state, id);
     case "resolve-claim":
@@ -431,6 +431,14 @@ function endDay() {
   void saveGame(state);
   scheduleDayReportUnlock();
   return { message: `Day ${state.day} begins. ${state.milestoneText}` };
+}
+
+function fulfillOnlineOrderAndBackfill(orderId) {
+  const result = fulfillOnlineOrder(state, orderId);
+  if (!result?.ok) return result;
+  const pendingCount = state.onlineOrders.filter((order) => order.status === "posted").length;
+  if (pendingCount < 1) postGuaranteedOnlineOrder(state);
+  return result;
 }
 
 function buildDayReport(state, dayEnded, cashBefore, ledgerCountBefore, events) {

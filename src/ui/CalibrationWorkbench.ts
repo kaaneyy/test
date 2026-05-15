@@ -67,12 +67,26 @@ export function renderCalibrationWorkbench(state) {
           </button>
         `; }).join("")}
       </div>
+      <details>
+        <summary>Optional fine-tuning tools</summary>
+        <div class="action-grid">
+          ${optionalActions.map((action) => {
+            const cost = estimateAdjustmentCost(action);
+            return `<button data-action="calibration-action" data-id="${action.id}" title="${action.help}">${action.label} ($${cost.toFixed(2)})</button>`;
+          }).join("")}
+        </div>
+      </details>
+      <details>
+        <summary>Risky shortcuts</summary>
+        <div class="action-grid">
+          ${riskyActions.map((action) => `
+            <button data-action="calibration-action" data-id="${action.id}" class="danger-button" title="${action.help}">${action.label} (risk)</button>
+          `).join("")}
+        </div>
+      </details>
       <div class="score-details">
-        <h3>Scoring Notes</h3>
-        <p>Relief, action, nut clearance, intonation, tuning stability, pickup height, electronics noise, cleanliness, documentation, play test, tool condition, and staff skill all feed the hidden outcome. Shortcuts create defects that can be discovered later.</p>
-        <ul class="fact-list">
-          ${Object.entries(preview.components).map(([key, value]) => `<li>${labelize(key)}: ${value}</li>`).join("")}
-        </ul>
+        <h3>What affects result</h3>
+        <p>Core setup quality, tuning stability, documentation, and play test matter most. Shortcuts can create future defects.</p>
       </div>
       <div class="sticky-action">
         <button class="primary" data-action="finalize-calibration">Finalize setup and take payment</button>
@@ -89,8 +103,4 @@ function metric(label, value, hint = "") {
       ${hint ? `<small>${hint}</small>` : ""}
     </div>
   `;
-}
-
-function labelize(key) {
-  return key.replace(/([A-Z])/g, " $1").replace(/^./, (char) => char.toUpperCase());
 }
