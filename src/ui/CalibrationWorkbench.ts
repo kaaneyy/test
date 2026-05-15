@@ -1,4 +1,4 @@
-import { calibrationActions, scoreCalibration, summarizeMeasurements } from "../core/Calibration.ts";
+import { calibrationActions, scoreCalibration, summarizeMeasurements, getCalibrationReadiness, estimateAdjustmentCost } from "../core/Calibration.ts";
 import { calibrationProfiles, preferenceModifiers, setupProcedures } from "../data/calibrationProfiles.ts";
 
 export function renderCalibrationWorkbench(state) {
@@ -17,11 +17,29 @@ export function renderCalibrationWorkbench(state) {
   const modifier = preferenceModifiers[calibration.preferenceId];
   const service = setupProcedures.find((item) => item.id === calibration.serviceId);
   const m = calibration.measurements;
+  const readiness = getCalibrationReadiness(calibration);
+  const instrumentGroup = calibration.instrumentName.toLowerCase().includes("piano") ? "piano" : calibration.instrumentName.toLowerCase().includes("bass") ? "bass" : "guitar";
+  const allowedActions = calibrationActions.filter((action) => {
+    if (instrumentGroup === "piano") return !["raise-pickups", "lower-pickups", "clean-electronics"].includes(action.id);
+    if (instrumentGroup === "bass") return action.id !== "condition-board";
+    return true;
+  });
+  const neededActions = allowedActions.filter((action) => readiness.missingSteps.includes(action.step) && !action.shortcut);
+  const optionalActions = allowedActions.filter((action) => !readiness.missingSteps.includes(action.step) && !action.shortcut);
+  const riskyActions = allowedActions.filter((action) => action.shortcut);
+  const quickEventPrompt = instrumentGroup === "piano" ? "Strike the matching key timing" : instrumentGroup === "bass" ? "Lock in groove timing" : "Nail the string bend timing";
+  const sale = state.activeSale;
+  const adjustmentCost = sale?.adjustmentCost || 0;
+  const baseProfit = sale?.totals?.profit || 0;
+  const projectedProfit = baseProfit - adjustmentCost;
   return `
     <section class="panel-section calibration-panel">
       <h2>${calibration.instrumentName}</h2>
       <p class="muted">${service.label} | ${profile.label} | Preference: ${modifier.label}</p>
       <div class="score-strip">
+        <span>Sale $<strong>${sale?.totals?.total?.toFixed?.(2) || "0.00"}</strong></span>
+        <span>Projected profit <strong>$${projectedProfit.toFixed(2)}</strong></span>
+        <span>Readiness <strong>${readiness.ready ? "Ready" : "Not ready"}</strong></span>
         <span>Preview setup score <strong>${preview.score}</strong></span>
         <span>Customer impact <strong>${preview.satisfaction}</strong></span>
         <span>Buzz risk <strong>${preview.risks.buzzRisk}</strong></span>
@@ -39,20 +57,39 @@ export function renderCalibrationWorkbench(state) {
         ${metric("Documentation", `${Math.round(calibration.documentationQuality)}/100`)}
       </div>
       <p class="quote">${summarizeMeasurements(calibration)}</p>
-      <h3>Tools and Actions</h3>
+      ${readiness.shortcutTaken ? `<p class="quote">Shortcut selected: no further adjustments required before finalize, but quality/reputation risk applies.</p>` : ""}
+      ${(!readiness.shortcutTaken && readiness.missingSteps.length) ? `<p class="quote">Missing before sale: ${readiness.missingSteps.join(", ")}.</p>` : ""}
+      <h3>Adjustments (simple flow)</h3>
+      <p class="muted">Do the highlighted required steps first, then finalize. Optional tools are listed below if you want to fine-tune.</p>
+      <div class="button-row"><button data-action="start-fullscreen-qte">Start full-screen setup QTE</button><button data-action="auto-adjust">Auto complete required steps (premium)</button></div>
+      <p class="quote">Mini game prompt: ${quickEventPrompt}.</p>
+      <h4>Required now</h4>
       <div class="action-grid">
-        ${calibrationActions.map((action) => `
-          <button data-action="calibration-action" data-id="${action.id}" class="${action.shortcut ? "danger-button" : ""}" title="${action.help}">
-            ${action.label}
-          </button>
-        `).join("")}
+        ${neededActions.length ? neededActions.map((action) => {
+          const cost = estimateAdjustmentCost(action);
+          return `<button data-action="calibration-action" data-id="${action.id}" class="needed-action" title="${action.help}">${action.label} ($${cost.toFixed(2)})</button>`;
+        }).join("") : "<p class='muted'>All required steps done. You can finalize now.</p>"}
       </div>
+      <details>
+        <summary>Optional fine-tuning tools</summary>
+        <div class="action-grid">
+          ${optionalActions.map((action) => {
+            const cost = estimateAdjustmentCost(action);
+            return `<button data-action="calibration-action" data-id="${action.id}" title="${action.help}">${action.label} ($${cost.toFixed(2)})</button>`;
+          }).join("")}
+        </div>
+      </details>
+      <details>
+        <summary>Risky shortcuts</summary>
+        <div class="action-grid">
+          ${riskyActions.map((action) => `
+            <button data-action="calibration-action" data-id="${action.id}" class="danger-button" title="${action.help}">${action.label} (risk)</button>
+          `).join("")}
+        </div>
+      </details>
       <div class="score-details">
-        <h3>Scoring Notes</h3>
-        <p>Relief, action, nut clearance, intonation, tuning stability, pickup height, electronics noise, cleanliness, documentation, play test, tool condition, and staff skill all feed the hidden outcome. Shortcuts create defects that can be discovered later.</p>
-        <ul class="fact-list">
-          ${Object.entries(preview.components).map(([key, value]) => `<li>${labelize(key)}: ${value}</li>`).join("")}
-        </ul>
+        <h3>What affects result</h3>
+        <p>Core setup quality, tuning stability, documentation, and play test matter most. Shortcuts can create future defects.</p>
       </div>
       <div class="sticky-action">
         <button class="primary" data-action="finalize-calibration">Finalize setup and take payment</button>
@@ -69,8 +106,4 @@ function metric(label, value, hint = "") {
       ${hint ? `<small>${hint}</small>` : ""}
     </div>
   `;
-}
-
-function labelize(key) {
-  return key.replace(/([A-Z])/g, " $1").replace(/^./, (char) => char.toUpperCase());
 }
