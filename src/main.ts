@@ -52,15 +52,11 @@ canvas.addEventListener("click", (event) => {
 });
 
 window.addEventListener("keydown", (event) => {
-  const key = event.key.toLowerCase();
-  if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) {
-    event.preventDefault();
-  }
   if (state.ui.qte?.active) {
     handleQteKey(event.key.toUpperCase());
     return;
   }
-  if (key === "e") interactNearby();
+  if (event.key.toLowerCase() === "e") interactNearby();
   if (event.key === "Escape") {
     state.ui.panel = "shop";
     render();
@@ -383,6 +379,14 @@ function finalizeCurrentSale() {
 }
 
 function endDay() {
+  if ((state.dayGoals?.customersServed || 0) < (state.dayGoals?.customersTarget || 0)) {
+    return { message: `Serve more customers before closing day: ${state.dayGoals.customersServed}/${state.dayGoals.customersTarget}.` };
+  }
+  const ordersTarget = state.dayGoals?.ordersTarget ?? 1;
+  const ordersFulfilled = state.dayGoals?.ordersFulfilled ?? 0;
+  if (ordersFulfilled < ordersTarget) {
+    return { message: `Fulfill at least ${ordersTarget} online order today before ending day.` };
+  }
   const dayEnded = state.day;
   const fatigueBeforeReset = state.player.fatigue.level;
   const cashBefore = state.cash;
@@ -509,17 +513,17 @@ function renderModal() {
 
 function renderHud() {
   const cards = [
-    { icon: "🗓️", value: `Day ${state.day}` },
-    { icon: "💵", value: `$${state.cash.toFixed(2)}` },
-    { icon: "⭐", value: `${Math.round(state.stats.publicReputation)}` },
-    { icon: "🏛️", value: `${Math.round(state.stats.industryHonor)}` },
-    { icon: "🏦", value: `${Math.round(state.stats.creditScore)}` },
-    { icon: "😮‍💨", value: `${Math.round(state.player.fatigue.level)}` },
-    { icon: "📈", value: `$${getRunningProfitToday().toFixed(2)}` },
-    { icon: "🧑‍🤝‍🧑", value: `${state.dayGoals.customersServed}/${state.dayGoals.customersTarget}` },
-    { icon: "📦", value: `${state.dayGoals.ordersFulfilled ?? 0}/${state.dayGoals.ordersTarget ?? 1}` },
+    { icon: "🗓️", value: `Day ${state.day}`, label: state.milestoneText },
+    { icon: "💵", value: `$${state.cash.toFixed(2)}`, label: "cash" },
+    { icon: "⭐", value: `${Math.round(state.stats.publicReputation)}`, label: "public rep" },
+    { icon: "🏛️", value: `${Math.round(state.stats.industryHonor)}`, label: "industry honor" },
+    { icon: "🏦", value: `${Math.round(state.stats.creditScore)}`, label: "credit" },
+    { icon: "😮‍💨", value: `${Math.round(state.player.fatigue.level)}`, label: "fatigue" },
+    { icon: "📈", value: `$${getRunningProfitToday().toFixed(2)}`, label: "profit today" },
+    { icon: "🧑‍🤝‍🧑", value: `${state.dayGoals.customersServed}/${state.dayGoals.customersTarget}`, label: "customers served" },
+    { icon: "📦", value: `${state.dayGoals.ordersFulfilled ?? 0}/${state.dayGoals.ordersTarget ?? 1}`, label: "orders fulfilled" },
   ];
-  hud.innerHTML = `<div class="hud-line">${cards.map((c)=>`<div class="hud-pill"><span>${c.icon}</span><strong>${c.value}</strong></div>`).join("")}</div>`;
+  hud.innerHTML = `<div class="hud-line">${cards.map((c)=>`<div class="hud-pill"><span>${c.icon}</span><strong>${c.value}</strong><small>${c.label}</small></div>`).join("")}</div>`;
 }
 
 function renderPanel() {

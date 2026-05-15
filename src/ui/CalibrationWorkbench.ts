@@ -24,9 +24,6 @@ export function renderCalibrationWorkbench(state) {
     if (instrumentGroup === "bass") return action.id !== "condition-board";
     return true;
   });
-  const neededActions = allowedActions.filter((action) => readiness.missingSteps.includes(action.step) && !action.shortcut);
-  const optionalActions = allowedActions.filter((action) => !readiness.missingSteps.includes(action.step) && !action.shortcut);
-  const riskyActions = allowedActions.filter((action) => action.shortcut);
   const quickEventPrompt = instrumentGroup === "piano" ? "Strike the matching key timing" : instrumentGroup === "bass" ? "Lock in groove timing" : "Nail the string bend timing";
   const sale = state.activeSale;
   const adjustmentCost = sale?.adjustmentCost || 0;
@@ -59,16 +56,16 @@ export function renderCalibrationWorkbench(state) {
       <p class="quote">${summarizeMeasurements(calibration)}</p>
       ${readiness.shortcutTaken ? `<p class="quote">Shortcut selected: no further adjustments required before finalize, but quality/reputation risk applies.</p>` : ""}
       ${(!readiness.shortcutTaken && readiness.missingSteps.length) ? `<p class="quote">Missing before sale: ${readiness.missingSteps.join(", ")}.</p>` : ""}
-      <h3>Adjustments (simple flow)</h3>
-      <p class="muted">Do the highlighted required steps first, then finalize. Optional tools are listed below if you want to fine-tune.</p>
+      <h3>Tools and Actions</h3>
+      <p class="muted">Educational path: inspect → relief → action → intonation → play test → document. Following this order improves consistency and score.</p>
       <div class="button-row"><button data-action="start-fullscreen-qte">Start full-screen setup QTE</button><button data-action="auto-adjust">Auto complete required steps (premium)</button></div>
-      <p class="quote">Mini game prompt: ${quickEventPrompt}.</p>
-      <h4>Required now</h4>
+      <p class="quote">Mini game: ${quickEventPrompt}. Use <strong>Quick focus event</strong> like a quick-time event during adjustments.</p>
       <div class="action-grid">
-        ${neededActions.length ? neededActions.map((action) => {
-          const cost = estimateAdjustmentCost(action);
-          return `<button data-action="calibration-action" data-id="${action.id}" class="needed-action" title="${action.help}">${action.label} ($${cost.toFixed(2)})</button>`;
-        }).join("") : "<p class='muted'>All required steps done. You can finalize now.</p>"}
+        ${allowedActions.map((action) => { const needed = readiness.missingSteps.includes(action.step); const cost = action.shortcut ? 0 : estimateAdjustmentCost(action); return `
+          <button data-action="calibration-action" data-id="${action.id}" class="${action.shortcut ? "danger-button" : ""} ${needed ? "needed-action" : ""}" title="${action.help}">
+            ${action.label} ${needed ? "• needed" : ""} ($${cost.toFixed(2)})
+          </button>
+        `; }).join("")}
       </div>
       <details>
         <summary>Optional fine-tuning tools</summary>
